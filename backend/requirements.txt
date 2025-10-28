@@ -1,0 +1,16 @@
+fastapi
+uvicorn[standard]
+pandas
+numpy
+# torch
+# transformers
+scikit-learn
+tensorflow
+requests
+yfinance
+praw
+openai
+pymongo
+sqlalchemy
+python-dotenv
+
