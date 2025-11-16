@@ -10,6 +10,8 @@ COPY requirements.txt .
 # Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
+# RUN pip install --no-deps ollama-python==0.1.2
+
 # Copy the rest of the application code
 COPY . .
 

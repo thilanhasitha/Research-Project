@@ -2,8 +2,6 @@ fastapi
 uvicorn[standard]
 pandas
 numpy
-# torch
-# transformers
 scikit-learn
 tensorflow
 requests
@@ -13,4 +11,4 @@ openai
 pymongo
 sqlalchemy
 python-dotenv
-
+pydantic>=2.5.3,<3.0.0

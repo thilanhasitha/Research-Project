@@ -11,8 +11,10 @@ services:
     restart: unless-stopped
     environment:
       - PYTHONUNBUFFERED=1
+      - OLLAMA_SERVICE_URL=http://ollama_service:8000/ask
     depends_on:
       - mongo
+      - ollama_service
     command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
     networks:
       - mainnet
@@ -54,6 +56,20 @@ services:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
+    networks:
+      - mainnet
+
+  ollama_service:
+    build:
+      context: ./ollama_service
+      dockerfile: Dockerfile
+    container_name: ollama_service
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    environment:
+      - OLLAMA_HOST=http://localhost:11434
+      - OLLAMA_MODEL=llama3.2
     networks:
       - mainnet
 
