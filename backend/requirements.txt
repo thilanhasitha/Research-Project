@@ -11,13 +11,8 @@ openai
 pymongo
 sqlalchemy
 python-dotenv
-<<<<<<< HEAD
 langchain
 langchain-community
 langchain-core
-langgrap
 langchain-google-genai
-
-=======
 pydantic>=2.5.3,<3.0.0
->>>>>>> 341e693533e48153faf00b8fac5954acf36000fc
