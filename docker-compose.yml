@@ -32,22 +32,22 @@ services:
     networks:
       - mainnet
 
-  data-pipeline:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: data_pipeline
-    volumes:
-      - ./backend:/app
-    restart: unless-stopped
-    depends_on:
-      - mongo
-    working_dir: /app
-    environment:
-      - PYTHONPATH=/app
-    command: python -m app.text_data_collection.data_pipeline
-    networks:
-      - mainnet
+  # data-pipeline:
+  #   build:
+  #     context: ./backend
+  #     dockerfile: Dockerfile
+  #   container_name: data_pipeline
+  #   volumes:
+  #     - ./backend:/app
+  #   restart: unless-stopped
+  #   depends_on:
+  #     - mongo
+  #   working_dir: /app
+  #   environment:
+  #     - PYTHONPATH=/app
+  #   command: python -m app.text_data_collection.data_pipeline
+  #   networks:
+  #     - mainnet
 
   mongo:
     image: mongo:6.0

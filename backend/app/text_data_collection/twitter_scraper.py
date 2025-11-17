@@ -2,7 +2,7 @@ import snscrape.modules.twitter as sntwitter
 import pandas as pd
 import os
 
-# AAAAAAAAAAAAAAAAAAAAADHD5QEAAAAAsVpoXqfegNcAleor5hunYICpM1I%3De31yczGJRTrXSklH4iEMrrjB7DR2BFIUiCrsAfIkTQoLcqoBbC
+
 
 def fetch_tweets(stock_symbols, limit=50):
     all_tweets = []
