@@ -2,8 +2,6 @@ fastapi
 uvicorn[standard]
 pandas
 numpy
-# torch
-# transformers
 scikit-learn
 tensorflow
 requests
@@ -13,9 +11,4 @@ openai
 pymongo
 sqlalchemy
 python-dotenv
-langchain
-langchain-community
-langchain-core
-langgraph
-langchain-google-genai
 
