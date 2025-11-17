@@ -13,4 +13,9 @@ openai
 pymongo
 sqlalchemy
 python-dotenv
+langchain
+langchain-community
+langchain-core
+langgraph
+langchain-google-genai
 
