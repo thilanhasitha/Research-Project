@@ -1,69 +1,70 @@
-version: "3.9"
+
 
 services:
+  # --------------------
+  # Backend
+  # --------------------
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile
-    container_name: project2_backend
+      dockerfile: Dockerfile 
+    container_name: research_backend
     ports:
       - "8001:8001"
     restart: unless-stopped
     environment:
       - PYTHONUNBUFFERED=1
-      - OLLAMA_SERVICE_URL=http://ollama_service:8000/ask
+      - MONGO_URI=mongodb+srv://research_user:user@cluster0.ovskpg3.mongodb.net/MyResearchDB?appName=Cluster0
     depends_on:
       - mongo
-      
     command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
     networks:
       - mainnet
 
+  # --------------------
+  # Frontend
+  # --------------------
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: project2_frontend
+    container_name: research_frontend
     ports:
-      - "3001:3001"
+      - "3001:80"
     restart: unless-stopped
     depends_on:
       - backend
     networks:
       - mainnet
 
-  # data-pipeline:
-  #   build:
-  #     context: ./backend
-  #     dockerfile: Dockerfile
-  #   container_name: data_pipeline
-  #   volumes:
-  #     - ./backend:/app
-  #   restart: unless-stopped
-  #   depends_on:
-  #     - mongo
-  #   working_dir: /app
-  #   environment:
-  #     - PYTHONPATH=/app
-  #   command: python -m app.text_data_collection.data_pipeline
-  #   networks:
-  #     - mainnet
-
+  # --------------------
+  # MongoDB
+  # --------------------
   mongo:
     image: mongo:6.0
-    container_name: project2_mongo_db
+    container_name: research_mongo
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: yasanjithbgth_db_user
+      MONGO_INITDB_ROOT_PASSWORD: GpFfDZnVGFfJPOeF
+      MONGO_INITDB_DATABASE: research_db
     ports:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
+      - ./mongo/social_media_data.json:/docker-entrypoint-initdb.d/social_media_data.json
+      - ./mongo/policies.json:/docker-entrypoint-initdb.d/policies.json
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval 'db.runCommand({ ping: 1 })' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     networks:
       - mainnet
-
-  
 
 volumes:
   mongo_data:
 
 networks:
   mainnet:
-    external: true
+    external: false

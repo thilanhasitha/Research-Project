@@ -1,0 +1,16 @@
+[
+  {
+    "source": "Twitter",
+    "post_id": "001",
+    "text": "CSE index rose 2% today.",
+    "timestamp": "2025-11-19T09:30:00",
+    "author": "trader1"
+  },
+  {
+    "source": "DailyFT",
+    "post_id": "002",
+    "text": "Foreign investors buying heavily in CSE.",
+    "timestamp": "2025-11-19T10:00:00",
+    "author": "newsdesk"
+  }
+]

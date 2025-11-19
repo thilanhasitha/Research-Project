@@ -1,0 +1,16 @@
+[
+  {
+    "source": "Twitter",
+    "post_id": "12345",
+    "text": "Market is looking positive today!",
+    "timestamp": "2025-11-19T10:00:00",
+    "author": "user1"
+  },
+  {
+    "source": "Economynext",
+    "post_id": "abcde",
+    "text": "Investors are worried about inflation.",
+    "timestamp": "2025-11-19T11:00:00",
+    "author": "user2"
+  }
+]

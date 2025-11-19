@@ -2,6 +2,7 @@ fastapi
 uvicorn[standard]
 pandas
 numpy
+motor
 snscrape
 scikit-learn
 tensorflow
@@ -17,3 +18,7 @@ langchain-community
 langchain-core
 langchain-google-genai
 pydantic>=2.5.3,<3.0.0
+beautifulsoup4
+lxml
+apscheduler
+tqdm
