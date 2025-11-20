@@ -7,7 +7,7 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
+# Install all dependencies including devDependencies
 RUN npm install
 
 # Copy all source files
@@ -24,7 +24,7 @@ FROM nginx:alpine
 # Remove default nginx website
 RUN rm -rf /usr/share/nginx/html/*
 
-# Copy build folder from Stage 1
+# Copy build folder from Stage 1 (Vite outputs to /app/dist)
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Copy custom Nginx config
