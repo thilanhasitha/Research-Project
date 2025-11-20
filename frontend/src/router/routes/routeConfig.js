@@ -6,6 +6,7 @@ export const ROUTES = {
   EXPLAINABLEAI: '/explainableai',
   FRAUDE: '/fraude',
   PORTFOLIO: '/portfolio',
+  TRADINGBOT: '/tradingbot',
   HELP: '/help',
   CHECKOUT: '/checkout',
   PROFILE: '/profile',
@@ -32,11 +33,11 @@ export const ROUTES = {
 
 // Navigation items for Header
 export const NAV_ITEMS = [
-  { name: 'Home', path: ROUTES.HOME },
-  { name: 'Explainableai', path: ROUTES.EXPLAINABLEAI },
-  { name: 'Fraude', path: ROUTES.FRAUDE },
-  { name: 'Portfolio', path: ROUTES.PORTFOLIO },
-  { name: 'Help', path: ROUTES.HELP },
+  { name: 'HOME', path: ROUTES.HOME },
+  { name: 'EXPLAINABLEAI', path: ROUTES.EXPLAINABLEAI },
+  { name: 'FRAUDE', path: ROUTES.FRAUDE },
+  { name: 'PORTFOLIO', path: ROUTES.PORTFOLIO },
+  { name: 'HELP', path: ROUTES.HELP },
 
 ];
 

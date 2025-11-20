@@ -41,7 +41,7 @@ const Header = () => {
             to={ROUTES.HOME}
             className="text-2xl font-bold text-white hover:text-gray-300 transition-colors"
           >
-            Stock Market Analyzer
+            Stock Market Hub
           </Link>
 
           {/* Desktop Navigation */}

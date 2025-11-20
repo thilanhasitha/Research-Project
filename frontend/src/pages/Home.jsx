@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight, Star, Truck, Shield, RotateCcw, Headphones } from 'lucide-react';
+import { ChevronRight, Star, ChartNoAxesCombined, Shield, RotateCcw, Headphones } from 'lucide-react';
 import { ROUTES } from '../router/routes/routeConfig';
 
 const HomePage = () => {
@@ -8,29 +8,38 @@ const HomePage = () => {
 
   const heroSlides = [
     {
-      title: "Summer Collection 2024",
-      subtitle: "Discover the latest trends",
-      description: "Step into style with our exclusive summer collection featuring vibrant colors and comfortable fits.",
-      buttonText: "Shop Now",
+      title: "Explainable AI in Trading",
+      subtitle: "Understand every trading decision",
+      description: "Leverage AI to analyze market trends with transparency, helping you know why each trade signal is generated.",
+      buttonText: "Learn More",
       link: ROUTES.EXPLAINABLEAI,
       bgGradient: "from-purple-600 via-purple-700 to-indigo-800",
-      image: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&h=600&fit=crop"
+      image: "https://plus.unsplash.com/premium_photo-1677094310956-7f88ae5f5c6b?w=60&h=60&fit=crop&crop=face"
     },
     {
-      title: "Premium Footwear",
-      subtitle: "Walk with confidence",
-      description: "From casual sneakers to elegant heels, find the perfect pair to complement your style.",
-      buttonText: "Explore Shoes",
+      title: "Stock Market Fraud Detection",
+      subtitle: "Protect your investments",
+      description: "Identify suspicious trades, insider manipulations, and fraudulent activities in real-time to safeguard your portfolio.",
+       buttonText: "Explore Now",
       link: ROUTES.FRAUDE,
       bgGradient: "from-indigo-600 via-purple-700 to-pink-800",
       image: "https://images.unsplash.com/photo-1549298916-b41d501d3772?w=800&h=600&fit=crop"
     },
     {
-      title: "Luxury Accessories",
-      subtitle: "Complete your look",
-      description: "Elevate your style with our curated collection of premium accessories and jewelry.",
-      buttonText: "View Collection",
+      title: "Smart Portfolio Management",
+      subtitle: "Optimize your investments",
+      description: "Monitor performance, manage risk, and rebalance your stock holdings with intelligent analytics and insights.",
+      buttonText: "Manage Portfolio",
       link: ROUTES.PORTFOLIO,
+      bgGradient: "from-pink-600 via-rose-700 to-orange-800",
+      image: "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=800&h=600&fit=crop"
+    },
+    {
+      title: "AI-Powered Trading Chatbot",
+      subtitle: "Instant market guidance",
+      description: "Get real-time trading advice, stock alerts, and portfolio recommendations directly through an intelligent chat interface.",
+      buttonText: "Start Trading",
+      link: ROUTES.TRADINGBOT,
       bgGradient: "from-pink-600 via-rose-700 to-orange-800",
       image: "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=800&h=600&fit=crop"
     }
@@ -45,46 +54,46 @@ const HomePage = () => {
 
   const categories = [
     {
-      name: "Women's Fashion",
+      name: "Explainable AI",
       image: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=400&h=500&fit=crop",
       link: ROUTES.EXPLAINABLEAI,
-      description: "Elegant & Trendy"
+      description: "Transparent trading insights"
     },
     {
-      name: "Men's Style",
+      name: "Fraud Detection",
       image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=500&fit=crop",
-      link: ROUTES.EXPLAINABLEAI,
-      description: "Classic & Modern"
-    },
-    {
-      name: "Premium Shoes",
-      image: "https://images.unsplash.com/photo-1551107696-a4b0c5a0d9a2?w=400&h=500&fit=crop",
       link: ROUTES.FRAUDE,
-      description: "Comfort & Style"
+      description: "Protect your investments"
     },
     {
-      name: "Accessories",
-      image: "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=400&h=500&fit=crop",
+      name: "Portfolio Management",
+      image: "https://images.unsplash.com/photo-1551107696-a4b0c5a0d9a2?w=400&h=500&fit=crop",
       link: ROUTES.PORTFOLIO,
-      description: "Complete Your Look"
+      description: "Optimize your holdings"
+    },
+    {
+      name: "Trading Chatbot",
+      image: "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=400&h=500&fit=crop",
+      link: ROUTES.TRADINGBOT,
+      description: "Instant AI guidance"
     }
   ];
 
   // Features
   const features = [
     {
-      icon: Truck,
-      title: "Free Shipping",
-      description: "Free shipping on orders over $50"
+      icon: ChartNoAxesCombined,
+      title: "Visualize trends",
+      description: "new trands to get visualize"
     },
     {
       icon: RotateCcw,
-      title: "Easy Returns",
-      description: "30-day return policy"
+      title: "knowledge fullfill",
+      description: "stock market related policy"
     },
     {
       icon: Shield,
-      title: "Secure Payment",
+      title: "Secure Decisions",
       description: "100% secure transactions"
     },
     {
@@ -99,19 +108,19 @@ const HomePage = () => {
     {
       name: "Sarah Johnson",
       rating: 5,
-      comment: "Amazing quality and fast shipping! Love my new dress.",
+      comment: "The AI trading signals helped me make informed decisions. My portfolio has never been healthier!",
       avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=60&h=60&fit=crop&crop=face"
     },
     {
       name: "Mike Chen",
       rating: 5,
-      comment: "Best customer service and great selection of products.",
+      comment: "Fraud detection alerts caught suspicious activities early. I feel much safer investing now.",
       avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=60&h=60&fit=crop&crop=face"
     },
     {
       name: "Emma Wilson",
       rating: 5,
-      comment: "Stylish clothes at great prices. Highly recommend!",
+      comment: "Portfolio management tools are excellent! I can track my stocks, rebalance, and analyze risk easily.",
       avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=60&h=60&fit=crop&crop=face"
     }
   ];
@@ -202,10 +211,10 @@ const HomePage = () => {
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              Shop by Category
+             "Empowering Your Investments"
             </h2>
             <p className="text-xl text-gray-600">
-              Discover our curated collections for every style
+              Smart tools and insights to help you trade, invest, and grow with confidence.
             </p>
           </div>
           
@@ -250,7 +259,7 @@ const HomePage = () => {
             <input
               type="email"
               placeholder="Enter your email"
-              className="flex-1 px-6 py-4 rounded-full text-gray-900 focus:outline-none focus:ring-2 focus:ring-white"
+              className="flex-1 px-6 py-4 rounded-full text-lg text-gray-900 placeholder-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-purple-600"
             />
             <button className="bg-white text-purple-600 px-8 py-4 rounded-full font-semibold hover:bg-gray-100 transition-colors duration-200">
               Subscribe
