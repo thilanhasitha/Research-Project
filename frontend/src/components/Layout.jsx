@@ -2,6 +2,7 @@ import React from 'react'
 import Footer from './Footer';
 import Header from './Header';
 import { Outlet } from 'react-router-dom';
+import AIChat from './chat/AIChat';
 
 const Layout = () => {
   return (
@@ -13,6 +14,7 @@ const Layout = () => {
       </main>
 
       <Footer/>
+      <AIChat/>
     </div>
   )
 }
