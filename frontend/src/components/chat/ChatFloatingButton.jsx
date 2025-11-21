@@ -70,7 +70,7 @@ const ChatFloatingButton = ({
 
         {/* Connected Ping */}
         {connectionStatus === 'connected' && (
-          <div className="absolute inset-0 rounded-full bg-blue-400 opacity-20 scale-110 animate-ping"></div>
+          <div className="absolute inset-0 rounded-full bg-purple-400 opacity-20 scale-110 animate-ping"></div>
         )}
 
         {/* Disconnected Pulse */}

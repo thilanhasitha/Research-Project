@@ -3,10 +3,10 @@ import { Package, ShoppingBag, CreditCard, RotateCcw } from 'lucide-react';
 
 const QuickActions = ({ onActionClick, disabled = false, connectionStatus = 'unknown' }) => {
   const actions = [
-    { icon: Package, label: 'Track Order', action: 'track_order' },
-    { icon: ShoppingBag, label: 'Product Info', action: 'product_info' },
-    { icon: CreditCard, label: 'Payment Help', action: 'payment_help' },
-    { icon: RotateCcw, label: 'Return Policy', action: 'return_policy' }
+    { icon: Package, label: 'Sentiment Check', action: 'sentiment_check' },
+    { icon: ShoppingBag, label: 'Market Pulse', action: 'market_pulse' },
+    { icon: CreditCard, label: 'Set Alerts', action: 'set_alerts' },
+    { icon: RotateCcw, label: 'Trend Tracker', action: 'trend_tracker' }
   ];
 
   const getButtonStyle = () => {

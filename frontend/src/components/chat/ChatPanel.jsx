@@ -109,7 +109,7 @@ const ChatPanel = ({
               <Bot className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-semibold text-sm">Shopping Assistant</h3>
+              <h3 className="font-semibold text-sm">Stock Market Assistant</h3>
               <div className={`flex items-center gap-1 text-xs ${getConnectionColor()}`}>
                 {getConnectionIcon()}
                 <span>{getConnectionText()}</span>
