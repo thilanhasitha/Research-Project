@@ -14,7 +14,7 @@ services:
     restart: unless-stopped
     environment:
       - PYTHONUNBUFFERED=1
-      - MONGO_URI=mongodb+srv://research_user:user@cluster0.ovskpg3.mongodb.net/MyNewDB?appName=Cluster0
+      - MONGO_URI=mongodb+srv://research_user:user@cluster0.ovskpg3.mongodb.net/research_db?appName=Cluster0
     depends_on:
       - mongo
     command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
@@ -40,6 +40,21 @@ services:
       - backend
     networks:
       - mainnet
+  
+ 
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+      - ./ollama/start-ollama.sh:/start-ollama.sh
+    restart: unless-stopped
+    entrypoint: ["/start-ollama.sh"]
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+
 
   # --------------------
   # MongoDB
@@ -48,8 +63,8 @@ services:
     image: mongo:6.0
     container_name: research_mongo
     environment:
-      MONGO_INITDB_ROOT_USERNAME: yasanjithbgth_db_user
-      MONGO_INITDB_ROOT_PASSWORD: GpFfDZnVGFfJPOeF
+      MONGO_INITDB_ROOT_USERNAME: research_user
+      MONGO_INITDB_ROOT_PASSWORD: user
       MONGO_INITDB_DATABASE: research_db
     ports:
       - "27017:27017"
@@ -68,6 +83,7 @@ services:
 
 volumes:
   mongo_data:
+  ollama_data:
 
 networks:
   mainnet:

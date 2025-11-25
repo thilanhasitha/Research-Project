@@ -22,7 +22,7 @@ class MongoClient:
             return
 
         self.mongo_uri = mongo_uri or os.getenv("MONGO_URI", "mongodb://localhost:27017")
-        self.db_name = db_name or os.getenv("DB_NAME", "mydatabase")
+        self.db_name = db_name or os.getenv("DB_NAME", "research_db")
         self._client: Optional[AsyncIOMotorClient] = None
         self._db = None
         self._initialized = True
