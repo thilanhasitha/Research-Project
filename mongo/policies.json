@@ -1,16 +1,14 @@
 [
   {
-    "source": "Twitter",
-    "post_id": "001",
-    "text": "CSE index rose 2% today.",
-    "timestamp": "2025-11-19T09:30:00",
-    "author": "trader1"
+    "policy_id":"001",
+    "policy_type":"financial policy",
+    "policy":"nknv vkfnv vknlg lgngslgealg vlgne"
+    
   },
   {
-    "source": "DailyFT",
-    "post_id": "002",
-    "text": "Foreign investors buying heavily in CSE.",
-    "timestamp": "2025-11-19T10:00:00",
-    "author": "newsdesk"
+    "policy_id":"002",
+    "policy_type":"stock-market policy",
+    "policy":"nknv vkfnv vknlg lgngslgealg vlgne"
+    
   }
 ]

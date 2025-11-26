@@ -49,4 +49,3 @@ def latest_news(limit: int = 20):
         return {"latest_news": news}
     except Exception as e:
         return {"error": str(e)}
-
