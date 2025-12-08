@@ -11,41 +11,53 @@ RSS_FEEDS = [
     "https://news.google.com/rss/search?q=stock+market",
 ]
 
+
+# COLLECT & PROCESS NEWS WITH LLM
+# -----------------------------------------------------
 @router.get("/collect")
 async def collect_news():
+    """
+    Fetches RSS feeds, cleans text, generates summary, sentiment,
+    and stores them in MongoDB.
+    """
     try:
-        llm = LLMFactory.get_llm("ollama")
+        llm = LLMFactory.get_llm("ollama")    # Get Ollama model instance
         service = RSSService(llm)
 
         results = []
-        for feed in RSS_FEEDS:
-            res = await service.fetch_and_store(feed)
-            results.append(res)
+        for feed_url in RSS_FEEDS:
+            response = await service.fetch_and_store(feed_url)
+            results.append({
+                "feed": feed_url,
+                "result": response
+            })
 
-        return {"message": "RSS collection completed", "feeds": results}
+        return {
+            "status": "success",
+            "message": "RSS collection completed",
+            "feeds": results
+        }
 
     except Exception as e:
-        return {"error": str(e)}
+        return {"status": "error", "error": str(e)}
 
 
-# @router.get("/latest")
-# def latest_news(limit: int = 20):
-#     """
-#     Returns the latest news stored in the database.
-#     limit: number of articles to return
-#     """
-#     try:
-#         service = RSSService(llm=None)  # no LLM needed for latest news
-#         news = service.get_latest_news(limit=limit)
-#         return {"latest_news": news}
-#     except Exception as e:
-#         return {"error": str(e)}
 
+# GET LATEST SAVED NEWS
+# -----------------------------------------------------
 @router.get("/latest")
 def latest_news(limit: int = 20):
+    """
+    Returns the latest news documents stored in MongoDB.
+    No LLM usage required.
+    """
     try:
         repo = RSSRepository()
-        news = repo.get_latest_news(limit=limit)
-        return {"latest_news": news}
+        articles = repo.get_latest_news(limit)
+        return {
+            "status": "success",
+            "count": len(articles),
+            "data": articles
+        }
     except Exception as e:
-        return {"error": str(e)}
+        return {"status": "error", "error": str(e)}

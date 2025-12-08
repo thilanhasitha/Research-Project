@@ -10,7 +10,7 @@ class LLMProvider(ABC):
     @abstractmethod
     def create_llm(self, **kwargs) -> LLM:
         """
-        Create a new LLM instance with optional configuration.
+        Create a new LLM instance with optional configuration. 
         """
         pass 
     

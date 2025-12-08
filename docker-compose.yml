@@ -43,24 +43,42 @@ services:
   # --------------------
   # Ollama
   # --------------------
-  # ollama:
-  #   image: ollama/ollama:latest
-  #   container_name: ollama
-  #   ports:
-  #     - "11434:11434"
-  #   volumes:
-  #     - ollama_data:/root/.ollama
-  #     - ./ollama/start-ollama.sh:/start-ollama.sh
-  #   restart: unless-stopped
-  #   entrypoint: ["/start-ollama.sh"]
-  #   environment:
-  #     - NVIDIA_VISIBLE_DEVICES=all
-  #   networks:
-  #     - mainnet
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+      - ./ollama/start-ollama.sh:/start-ollama.sh
+    restart: unless-stopped
+    entrypoint: ["/start-ollama.sh"]
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    networks:
+      - mainnet
 
   # --------------------
   # MongoDB
   # --------------------
+
+  weaviate:
+    image: semitechnologies/weaviate:1.33.0
+    ports:
+      - "8080:8080"
+    environment:
+      ENABLE_MODULES: 'text2vec-ollama'
+      DEFAULT_VECTORIZER_MODULE: 'text2vec-ollama'
+      OLLAMA_API_ENDPOINT: 'http://ollama:11434'
+      QUERY_DEFAULTS_LIMIT: 25
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
+      PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
+      CLUSTER_HOSTNAME: 'node1'
+    volumes:
+      - ./weaviate_data:/var/lib/weaviate
+    depends_on:
+      - ollama
+
   mongo:
     build:
       context: ./mongo

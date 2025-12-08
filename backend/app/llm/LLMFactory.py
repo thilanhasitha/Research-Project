@@ -2,6 +2,7 @@ from typing import Dict, Type
 from langchain_core.language_models.llms import LLM
 from app.llm.LLMProvider import LLMProvider
 
+
 class LLMFactory:
     
     _providers: Dict[str, Type[LLMProvider]] = {}
