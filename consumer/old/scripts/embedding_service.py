@@ -62,7 +62,7 @@ class EmbeddingService:
         Returns:
             API response as dict, or None if request fails
         """
-        url = f"{self.host}/v1/embeddings"
+        url = f"{self.host}/v2/embeddings"
         payload = {
             "model": self.model,
             "input": text
