@@ -3,10 +3,10 @@ from dataclasses import dataclass
 
 @dataclass
 class Config:
-    # Kafka Configuration
-    # kafka_broker: str = os.getenv("KAFKA_BROKER", "kafka:9092")
-    # kafka_topic: str = os.getenv("TOPIC", "fashionhub.fashionhub.items")
-    # kafka_group_id: str = os.getenv("KAFKA_GROUP_ID", "fashionhub-consumer-group")
+   # Kafka Configuration
+    kafka_broker: str = os.getenv("KAFKA_BROKER", "kafka:9092")
+    kafka_topic: str = os.getenv("TOPIC", "research_db.research_db.rss_news")
+    kafka_group_id: str = os.getenv("KAFKA_GROUP_ID", "research_db-consumer-group")
     
     # Weaviate Configuration
     weaviate_host: str = os.getenv("WEAVIATE_HOST", "weaviate")
