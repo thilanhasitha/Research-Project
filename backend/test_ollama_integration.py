@@ -16,7 +16,7 @@ async def test_ollama():
         print("✔ Provider loaded:", provider.current_config)
         print("✔ LLM instance created:", llm_instance)
 
-        print("\n📨 Sending test prompt to Ollama...\n")
+        print("\n Sending test prompt to Ollama...\n")
 
         response = await provider.generate("Hello from test_ollama! Are you working correctly?")
         
