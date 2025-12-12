@@ -16,7 +16,7 @@ class Config:
     vector_dim: int = os.getenv("VECTOR_DIM", 768)
     
     # Ollama Configuration
-    ollama_host: str = os.getenv("OLLAMA_HOST", "http://localhost:11434/v2/embeddings")
+    ollama_host: str = os.getenv("OLLAMA_HOST", "http://localhost:11434")
     ollama_model: str = os.getenv("OLLAMA_MODEL", "nomic-embed-text")
     
     # Processing Configuration

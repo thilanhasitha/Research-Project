@@ -39,8 +39,8 @@ class EmbeddingService:
             #   "model": "nomic-embed-text",
             #   "usage": {...}
             # }
-            if "data" in response and len(response["data"]) > 0:
-                embedding = response["data"][0]["embedding"]
+            if "embeddings" in response and len(response["embeddings"]) > 0:
+                embedding = response["embeddings"][0]
                 logger.debug(f"Embedding: {embedding}")
                 logger.debug(f"Embedding length: {len(embedding)}")
                 return embedding
@@ -62,7 +62,7 @@ class EmbeddingService:
         Returns:
             API response as dict, or None if request fails
         """
-        url = f"{self.host}/v2/embeddings"
+        url = f"{self.host}/api/embed"
         payload = {
             "model": self.model,
             "input": text
