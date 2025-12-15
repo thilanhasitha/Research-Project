@@ -67,15 +67,40 @@ class RSSService:
         if not self.llm:
             return "Summary unavailable: LLM not initialized"
         try:
-            prompt = f"""
-            Summarize the following news article in 2-3 sentences.
-            Focus on the main financial or economic insight.
-            Return ONLY the summary text.
-            Text: {text}
-            """
+            # Limit text length to avoid token limits and improve speed
+            text_sample = text[:1000] if len(text) > 1000 else text
+            
+            prompt = f"""Summarize this news article in 2-3 clear sentences.
+Focus on the main financial or economic points.
+Write only the summary, no extra text or labels.
+
+Article:
+{text_sample}
+
+Summary:"""
+            
             summary = await self.llm.generate([prompt])
-            return summary.strip()
+            
+            # Clean up the response
+            summary = summary.strip()
+            
+            # Remove common prefixes that LLMs might add
+            prefixes_to_remove = [
+                "Summary:", "Here's the summary:", "Here is the summary:",
+                "The summary is:", "Summary of the article:"
+            ]
+            for prefix in prefixes_to_remove:
+                if summary.startswith(prefix):
+                    summary = summary[len(prefix):].strip()
+            
+            # Ensure we have some content
+            if not summary or len(summary) < 10:
+                return "Unable to generate summary"
+            
+            return summary
+            
         except Exception as e:
+            print(f"Summary generation error: {e}")
             return f"Summary error: {str(e)}"
 
     # ------------------------------
@@ -85,19 +110,55 @@ class RSSService:
         if not self.llm:
             return {"sentiment": "neutral", "score": 0}
         try:
-            prompt = f"""
-            Analyze the sentiment of this financial news.
-            Give:
-            - sentiment: positive, neutral, or negative
-            - score: a number between -1 and 1
-            - reason: short explanation
-            Return JSON only.
-            Text: {text}
-            """
+            # Limit text length to avoid token limits
+            text_sample = text[:800] if len(text) > 800 else text
+            
+            prompt = f"""Analyze the sentiment of this financial news.
+You MUST respond with ONLY valid JSON, nothing else.
+
+Required format:
+{{"sentiment": "positive", "score": 0.8, "reason": "brief explanation"}}
+
+Rules:
+- sentiment: must be exactly "positive", "neutral", or "negative"
+- score: number between -1.0 (very negative) and 1.0 (very positive)
+- reason: one short sentence explaining why
+
+Text to analyze:
+{text_sample}
+
+Respond with JSON only:"""
+
             result = await self.llm.generate([prompt])
-            return json.loads(result)
-        except Exception:
-            return {"sentiment": "neutral", "score": 0}
+            
+            # Try to extract JSON from response (in case LLM adds extra text)
+            import re
+            json_match = re.search(r'\{.*?\}', result, re.DOTALL)
+            if json_match:
+                result = json_match.group()
+            
+            parsed = json.loads(result)
+            
+            # Validate the response structure
+            if "sentiment" not in parsed or "score" not in parsed:
+                raise ValueError("Missing required fields")
+            
+            # Ensure sentiment is one of the valid values
+            valid_sentiments = ["positive", "neutral", "negative"]
+            if parsed["sentiment"] not in valid_sentiments:
+                parsed["sentiment"] = "neutral"
+            
+            # Ensure score is a number
+            try:
+                parsed["score"] = float(parsed["score"])
+            except (ValueError, TypeError):
+                parsed["score"] = 0.0
+            
+            return parsed
+            
+        except Exception as e:
+            print(f"Sentiment analysis error: {e}")
+            return {"sentiment": "neutral", "score": 0, "reason": "Error parsing response"}
 
     # ------------------------------
     # FETCH & STORE

@@ -8,7 +8,7 @@ router = APIRouter(prefix="/rss", tags=["RSS News"])
 RSS_FEEDS = [
     "https://economynext.com/feed/",
     "https://www.ft.lk/feed/",
-    "https://news.google.com/rss/search?q=stock+market",
+    "https://www.tradingview.com/markets/stocks-sri-lanka/news/",
 ]
 
 

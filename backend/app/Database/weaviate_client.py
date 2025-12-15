@@ -124,7 +124,7 @@ class WeaviateClient:
             logger.info("Creating Weaviate collection: News")
 
             self._collection = self._client.collections.create(
-                name="News",
+                name="rss_news",
                 properties=[
                     Property(name="title", data_type=DataType.TEXT),
                     Property(name="content", data_type=DataType.TEXT),

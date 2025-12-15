@@ -86,14 +86,14 @@ class WeaviateClient:
     # ============================================================
     #  CRUD OPERATIONS WITH UPSERT
     # ============================================================
-    def insert_rss_news(self, mongo_id: str, rss_news: RSSNews, vector: List[float]) -> bool:
+    def insert_item(self, mongo_id: str, rss_news: RSSNews, vector: List[float]) -> bool:
         """Insert with upsert logic using mongoId."""
         try:
             existing_uuid = self._find_by_mongo_id(mongo_id)
 
             if existing_uuid:
                 logger.info(f"Updating existing Weaviate record for Mongo ID: {mongo_id}")
-                return self.update_rss_news(mongo_id, rss_news, vector)
+                return self.update_item(mongo_id, rss_news, vector)
 
             properties = {"mongoId": mongo_id, **rss_news.model_dump()}
             uuid = self.collection.data.insert(properties=properties, vector=vector)
@@ -104,7 +104,7 @@ class WeaviateClient:
             logger.error(f"Insert failed: {e}")
             return False
 
-    def update_rss_news(self, mongo_id: str, rss_news: RSSNews, vector: List[float]) -> bool:
+    def update_item(self, mongo_id: str, rss_news: RSSNews, vector: List[float]) -> bool:
         """Update Weaviate rss_news item by mongoId."""
         try:
             uuid = self._find_by_mongo_id(mongo_id)
@@ -121,7 +121,7 @@ class WeaviateClient:
             logger.error(f"Update failed: {e}")
             return False
 
-    def delete_rss_news(self, mongo_id: str) -> bool:
+    def delete_item(self, mongo_id: str) -> bool:
         """Delete rss_news using mongoId."""
         try:
             uuid = self._find_by_mongo_id(mongo_id)

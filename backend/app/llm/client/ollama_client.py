@@ -1,8 +1,9 @@
 import os
 from typing import Optional
-from langchain_community.llms import Ollama
+from langchain_ollama import OllamaLLM
 from langchain_core.language_models.llms import LLM
 from app.llm.LLMProvider import LLMProvider
+import json
 
 
 class OllamaClient(LLMProvider):
@@ -29,7 +30,7 @@ class OllamaClient(LLMProvider):
             "temperature": kwargs.get("temperature", self._default_temperature),
             "base_url": kwargs.get("base_url", self._ollama_host),
         }
-        return Ollama(**config)
+        return OllamaLLM(**config)
 
     def get_llm(self) -> LLM:
         if self._llm_instance is None:
