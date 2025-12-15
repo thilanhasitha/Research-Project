@@ -14,9 +14,14 @@ services:
     restart: unless-stopped
     environment:
       - PYTHONUNBUFFERED=1
-      - MONGO_URI=mongodb+srv://research:user@cluster0.sc4zaj7.mongodb.net/research_db?appName=Cluster0
+      - MONGO_URI=mongodb://research:user@mongo:27017/research_db?authSource=admin&directConnection=true
+      - DB_NAME=research_db
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_MODEL=llama3.2
+      - OLLAMA_TEMPERATURE=0.2
     depends_on:
       - mongo
+      - ollama
     command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
     networks:
       - mainnet
@@ -80,9 +85,7 @@ services:
       - ollama
 
   mongo:
-    build:
-      context: ./mongo
-      dockerfile: Dockerfile
+    image: mongo:8.0
     container_name: research_mongo
     ports:
       - "27017:27017"
@@ -92,7 +95,7 @@ services:
       MONGO_INITDB_DATABASE: research_db
     volumes:
       - mongo_data:/data/db
-      - ./mongo/policies.json:/docker-entrypoint-initdb.d/policies.json
+    command: mongod --bind_ip_all
     healthcheck:
       test: ["CMD-SHELL", "mongosh --quiet --eval 'db.runCommand({ ping: 1 })' || exit 1"]
       interval: 10s
