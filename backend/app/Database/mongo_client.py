@@ -29,15 +29,27 @@ class MongoClient:
 
     async def connect(self):
         if self._client is None:
-            try:
-                self._client = AsyncIOMotorClient(self.mongo_uri, serverSelectionTimeoutMS=10000)
-                self._db = self._client[self.db_name]
-                await self._client.admin.command('ping')
-                logger.info(f"✅ Connected to MongoDB successfully")
-            except Exception as e:
-                logger.error(f"❌ MongoDB connection failed: {e}")
-                logger.error(f"URI attempted: {self.mongo_uri.split('@')[1] if '@' in self.mongo_uri else self.mongo_uri}")
-                raise
+            import time
+            max_retries = 5
+            retry_delay = 2
+            
+            for attempt in range(max_retries):
+                try:
+                    logger.info(f"Attempting MongoDB connection (attempt {attempt + 1}/{max_retries})...")
+                    self._client = AsyncIOMotorClient(self.mongo_uri, serverSelectionTimeoutMS=10000)
+                    self._db = self._client[self.db_name]
+                    await self._client.admin.command('ping')
+                    logger.info(f"✅ Connected to MongoDB successfully")
+                    return
+                except Exception as e:
+                    logger.warning(f"⚠️ MongoDB connection attempt {attempt + 1} failed: {e}")
+                    if attempt < max_retries - 1:
+                        logger.info(f"Retrying in {retry_delay} seconds...")
+                        time.sleep(retry_delay)
+                    else:
+                        logger.error(f"❌ MongoDB connection failed after {max_retries} attempts")
+                        logger.error(f"URI attempted: {self.mongo_uri.split('@')[1] if '@' in self.mongo_uri else self.mongo_uri}")
+                        raise
 
     async def close(self):
         if self._client:
