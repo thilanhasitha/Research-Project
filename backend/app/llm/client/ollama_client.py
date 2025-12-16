@@ -4,6 +4,9 @@ from langchain_ollama import OllamaLLM
 from langchain_core.language_models.llms import LLM
 from app.llm.LLMProvider import LLMProvider
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class OllamaClient(LLMProvider):
@@ -20,9 +23,12 @@ class OllamaClient(LLMProvider):
         if not hasattr(self, "_initialized"):
             self._initialized = True
 
-            self._default_model = os.getenv("OLLAMA_MODEL", "llama3")
+            # Read from environment with proper defaults for Docker
+            self._default_model = os.getenv("OLLAMA_MODEL", "llama3.2")
             self._default_temperature = float(os.getenv("OLLAMA_TEMPERATURE", "0.2"))
-            self._ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+            self._ollama_host = os.getenv("OLLAMA_HOST", "http://ollama:11434")
+            
+            logger.info(f"OllamaClient initialized: host={self._ollama_host}, model={self._default_model}")
 
     def create_llm(self, **kwargs) -> LLM:
         config = {
@@ -30,6 +36,7 @@ class OllamaClient(LLMProvider):
             "temperature": kwargs.get("temperature", self._default_temperature),
             "base_url": kwargs.get("base_url", self._ollama_host),
         }
+        logger.info(f"Creating OllamaLLM with config: {config}")
         return OllamaLLM(**config)
 
     def get_llm(self) -> LLM:
