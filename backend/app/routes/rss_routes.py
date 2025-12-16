@@ -21,7 +21,7 @@ async def collect_news():
     and stores them in MongoDB.
     """
     try:
-        llm = LLMFactory.get_llm("ollama")    # Get Ollama model instance
+        llm = LLMFactory.get_provider("ollama")    # Get Ollama provider (not just the LLM)
         service = RSSService(llm)
 
         results = []

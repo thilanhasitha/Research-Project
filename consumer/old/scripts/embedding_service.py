@@ -47,7 +47,6 @@ class EmbeddingService:
 
             logger.error(f"Unexpected embedding response format: {response}")
             return None
-
         except Exception as e:
             logger.error(f"Error generating embedding: {e}")
             return None

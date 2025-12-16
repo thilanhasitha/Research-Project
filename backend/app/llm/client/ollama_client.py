@@ -53,58 +53,41 @@ class OllamaClient(LLMProvider):
          - a single string prompt, or
          - a list of string prompts
 
-        It calls the underlying Ollama LLM using the interface it accepts,
-        and returns a single string (the first generation).
+        It calls the underlying Ollama LLM and returns a string response.
         """
+        import asyncio
         llm = self.get_llm()
 
-        # Ensure we send a list[str] if the underlying LLM expects that.
-        prompts: list[str]
-        if isinstance(prompt, str):
-            prompts = [prompt]
-        elif isinstance(prompt, list):
-            prompts = prompt
+        # Normalize input to single string
+        if isinstance(prompt, list):
+            prompt_str = prompt[0] if prompt else ""
         else:
-            raise TypeError("prompt must be str or list[str]")
+            prompt_str = str(prompt)
 
         try:
-            # Try calling the async interface that accepts a list of prompts.
-            # Many LangChain community LLM wrappers expect a list[str] called "prompts".
-            response = await llm.ainvoke(prompts)  # try list-based async call
-        except TypeError:
-            # If the method signature expects a single string, try calling with the first prompt.
-            try:
-                response = await llm.ainvoke(prompts[0])
-            except Exception as e:
-                raise RuntimeError(f"Ollama generate() failed on second attempt: {e}")
+            logger.info(f"Calling Ollama invoke with prompt length: {len(prompt_str)}")
+            # Use asyncio.to_thread to run synchronous invoke in thread pool
+            response = await asyncio.to_thread(llm.invoke, prompt_str)
+            logger.info(f"Ollama response type: {type(response)}, length: {len(str(response)) if response else 0}")
+            
+            # invoke returns a string directly
+            if isinstance(response, str):
+                return response
+            
+            # Fallback: try to extract text from response object
+            if hasattr(response, 'text'):
+                return response.text
+            if hasattr(response, 'content'):
+                return response.content
+            if isinstance(response, dict):
+                return response.get("text") or response.get("content") or str(response)
+            
+            # Last resort
+            return str(response)
+            
         except Exception as e:
-            # Some wrappers return a structured object; rethrow for higher-level code to handle.
+            logger.error(f"Ollama generate error: {type(e).__name__}: {e}")
             raise RuntimeError(f"Ollama generate() failed: {e}")
-
-        # Normalize the response to a single string:
-        # - If it's already a string => return it
-        # - If it's a list => take the first element (and its text if nested)
-        # - If it's an object with 'text' or 'content' => extract
-        if isinstance(response, str):
-            return response
-        # handle list-like responses
-        if isinstance(response, (list, tuple)):
-            first = response[0] if len(response) > 0 else ""
-            if isinstance(first, str):
-                return first
-            # try common nested fields
-            if isinstance(first, dict):
-                return first.get("text") or first.get("content") or json.dumps(first)
-            try:
-                return str(first)
-            except Exception:
-                return ""
-        # handle dict-like responses
-        if isinstance(response, dict):
-            return response.get("text") or response.get("content") or json.dumps(response)
-
-        # fallback
-        return str(response)
 
     @property
     def current_config(self):
