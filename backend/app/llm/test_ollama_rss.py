@@ -86,7 +86,7 @@ class RSSServiceNoDB(RSSService):
 TEST_FEED = "https://economynext.com/feed/"
 
 async def test_ollama_rss():
-    print("🔹 Getting Ollama LLM instance...")
+    print(" Getting Ollama LLM instance...")
     try:
         llm = LLMFactory.get_llm("ollama")
         print(" Ollama LLM instance obtained")
