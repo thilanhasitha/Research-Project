@@ -1,7 +1,5 @@
 from langchain_core.tools import StructuredTool
 from app.Database.repositories.rss_repository import RSSRepository
-# from app.Database.repositories.search import BaseWeaviateSearchRepository
-# from app.Database.repositories.cart import CartRepository
 # from app.Database.repositories.policy import PolicyRepository
 from app.services.chat.agent.schema import *
 from typing import Optional, List, Dict, Any
@@ -68,8 +66,7 @@ def build_tools():
     """Returns a dict of tools keyed by name, and a list for LLM binding."""
     mongo_tools = build_mongo_tools()
     weaviate_tools = build_weaviate_tools()
-    cart_tools = build_cart_tool()
-    all_tools = mongo_tools + weaviate_tools + cart_tools
+    all_tools = mongo_tools + weaviate_tools 
     tools_dict = {tool.name: tool for tool in all_tools}
     return tools_dict, all_tools
 
