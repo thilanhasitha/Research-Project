@@ -14,7 +14,7 @@ const Footer = () => {
   const supportLinks = [
     { name: 'Help', path: '/help' },
     { name: 'Returns & Exchanges', path: '/help' },
-    { name: 'Shipping policy', path: '/help' }
+    { name: 'Trading policy', path: '/help' }
   ];
 
   return (
