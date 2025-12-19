@@ -14,7 +14,7 @@ const HomePage = () => {
       buttonText: "Learn More",
       link: ROUTES.EXPLAINABLEAI,
       bgGradient: "from-purple-600 via-purple-700 to-indigo-800",
-      image: "https://plus.unsplash.com/premium_photo-1677094310956-7f88ae5f5c6b?w=60&h=60&fit=crop&crop=face"
+      image: "https://gemini.google.com/share/4c9b90119e144b6f9e1e2c3e3f5e6d7?w=800&h=600&fit=crop"
     },
     {
       title: "Stock Market Fraud Detection",

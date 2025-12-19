@@ -7,12 +7,25 @@ from langchain_core.messages import AIMessage, HumanMessage, BaseMessage
 from app.services.chat.agent.schema import AgentState, ProductDisplay, MessageModel
 
 # Import shared resources and prompts
-from app.services.chat.agent.shared import llm_client, tools, tools_list, schema_manager
+from app.services.chat.agent import shared
 from app.services.chat.agent.prompts import (
     reasoner_prompt, clarification_prompt, classification_prompt,
     policy_prompt, policy_synthesis_prompt,
     answer_prompt, error_response_prompt, general_responder_prompt
 )
+
+# Helper to get resources with lazy initialization
+def _get_llm():
+    return shared.get_llm_client()
+
+def _get_tools():
+    return shared.get_tools()
+
+def _get_tools_list():
+    return shared.get_tools_list()
+
+def _get_schema_manager():
+    return shared.get_schema_manager()
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +84,7 @@ async def classify_intent(state: AgentState) -> dict:
         raise
     
     try:
-        response = await llm_client.ainvoke(
+        response = await _get_llm().ainvoke(
             messages,
             generation_config={"response_mime_type": "application/json"}
         )
@@ -145,7 +158,7 @@ async def policy_reasoner(state: AgentState) -> dict:
     
     messages = policy_prompt.format_messages(input=state.input)
     
-    response = await llm_client.ainvoke(messages, tools=tools_list)
+    response = await _get_llm().bind_tools(_get_tools_list().ainvoke(messages))
     logger.info(f"[POLICY_REASONER] Raw LLM response: {response!r}")
 
     normalized = []
@@ -180,8 +193,13 @@ async def general_responder(state: AgentState) -> dict:
         history=langchain_history
     )
     
-    # Invoke LLM with tools available
-    response = await llm_client.ainvoke(messages, tools=tools_list)
+    # Try to use tools if model supports them, otherwise fallback to no tools
+    try:
+        llm_with_tools = _get_llm().bind_tools(_get_tools_list())
+        response = await llm_with_tools.ainvoke(messages)
+    except Exception as e:
+        logger.warning(f"[GENERAL_RESPONDER] Tool binding failed ({e}), falling back to no tools")
+        response = await _get_llm().ainvoke(messages)
     logger.info(f"[GENERAL_RESPONDER] Raw LLM response: {response!r}")
     
     # Check if LLM made tool calls
@@ -213,8 +231,8 @@ async def shopping_reasoner(state: AgentState) -> dict:
     """(Product Search Flow) Generate tool calls to search for products."""
     logger.info(f"[LLM_REASONER] Input: {state.input}")
     
-    search_tools_list = [t for t in tools_list if t.name != "add_to_cart"]
-    schema_string = await schema_manager.get_dynamic_schema_string(
+    search_tools_list = [t for t in _get_tools_list() if t.name != "add_to_cart"]
+    schema_string = await _get_schema_manager().get_dynamic_schema_string(
         tool_names=["text_search", "hybrid_search", "get_product_by_id", "get_products_by_filter", "weaviate_hybrid_text_search", "weaviate_semantic_text_search", "mongo_find_by_filter"]
     )
     
@@ -228,7 +246,7 @@ async def shopping_reasoner(state: AgentState) -> dict:
         history=langchain_history
     )
     
-    response = await llm_client.ainvoke(messages, tools=search_tools_list)
+    response = await _get_llm().bind_tools(search_tools_list).ainvoke(messages)
     logger.info(f"[LLM_REASONER] Raw LLM response: {response!r}")
 
     normalized = []
@@ -274,8 +292,8 @@ async def cart_reasoner(state: AgentState) -> dict:
     logger.info(f"[CART_REASONER] Input: {state.input}")
     
     cart_tool_names = ["add_to_cart", "get_product_by_id", "text_search", "weaviate_semantic_text_search"]
-    cart_tools_list = [t for t in tools_list if t.name in cart_tool_names]
-    schema_string = await schema_manager.get_dynamic_schema_string(tool_names=cart_tool_names)
+    cart_tools_list = [t for t in _get_tools_list() if t.name in cart_tool_names]
+    schema_string = await _get_schema_manager().get_dynamic_schema_string(tool_names=cart_tool_names)
 
     pending_action = state.pending_cart_action or {}
     
@@ -286,7 +304,7 @@ async def cart_reasoner(state: AgentState) -> dict:
     if pending_action.get("item_id") and not pending_action.get("item_name"):
         try:
             logger.info(f"[CART_REASONER] Pre-fetching product details for {pending_action['item_id']}")
-            product = await tools["get_product_by_id"].ainvoke({"item_id": pending_action["item_id"]})
+            product = await _get_tools()["get_product_by_id"].ainvoke({"item_id": pending_action["item_id"]})
             if product and not product.get("error"):
                 pending_action["item_name"] = product.get("name", "the item")
                 pending_action["available_variety"] = product.get("variety", [])
@@ -317,7 +335,7 @@ async def cart_reasoner(state: AgentState) -> dict:
         logger.info(f"[CART_REASONER] Cart details: item_id={pending_action['item_id']}, "
                    f"variety={pending_action['variety']}, color={pending_action['color']}")
         
-        result = await tools["add_to_cart"].ainvoke({
+        result = await _get_tools()["add_to_cart"].ainvoke({
             "user_id": state.user_id,
             "item_id": pending_action["item_id"],
             "variety": pending_action["variety"],
@@ -349,7 +367,7 @@ async def cart_reasoner(state: AgentState) -> dict:
     
     messages = cart_prompt.format_messages(**prompt_kwargs)
     
-    response = await llm_client.ainvoke(messages, tools=cart_tools_list)
+    response = await _get_llm().bind_tools(cart_tools_list).ainvoke(messages)
     logger.info(f"[CART_REASONER] Raw LLM response: {response!r}")
     
     normalized = []
@@ -418,7 +436,7 @@ async def tool_executor(state: AgentState) -> dict:
 
         if tool_name in tools:
             try:
-                result = await tools[tool_name].ainvoke(args)
+                result = await _get_tools()[tool_name].ainvoke(args)
                 logger.info(f"[TOOL_EXECUTOR] Result: {result}")
                 
                 if tool_name == "add_to_cart":
@@ -545,7 +563,7 @@ async def format_results(state: AgentState) -> dict:
             user_query=state.input
         )
         
-        response = await llm_client.ainvoke(messages)
+        response = await _get_llm().ainvoke(messages)
         output = response.content if isinstance(response, AIMessage) else str(response)
         
         logger.info(f"[FORMATTER] LLM-generated error response: {output}")
@@ -596,7 +614,7 @@ async def format_results(state: AgentState) -> dict:
             error_details="No results were returned from the search",
             user_query=state.input
         )
-        response = await llm_client.ainvoke(messages)
+        response = await _get_llm().ainvoke(messages)
         output = response.content if isinstance(response, AIMessage) else str(response)
         return {"output": output}
 
@@ -621,7 +639,7 @@ async def format_results(state: AgentState) -> dict:
                 error_details="No matching policy documents were found",
                 user_query=state.input
             )
-            response = await llm_client.ainvoke(messages)
+            response = await _get_llm().ainvoke(messages)
             output = response.content if isinstance(response, AIMessage) else str(response)
             return {"output": output}
 
@@ -632,7 +650,7 @@ async def format_results(state: AgentState) -> dict:
             input=state.input
         )
         
-        response = await llm_client.ainvoke(messages)
+        response = await _get_llm().ainvoke(messages)
         output = response.content if isinstance(response, AIMessage) else str(response)
         
         logger.info(f"[FORMATTER] Returning synthesized policy response: {output}")
@@ -673,7 +691,7 @@ async def format_results(state: AgentState) -> dict:
         error_details="Search completed but no matching products were found with the specified criteria",
         user_query=state.input
     )
-    response = await llm_client.ainvoke(messages)
+    response = await _get_llm().ainvoke(messages)
     output = response.content if isinstance(response, AIMessage) else str(response)
     return {"output": output}
 
@@ -736,9 +754,9 @@ async def product_support_reasoner(state: AgentState) -> dict:
 
     if not state.focused_product_id:
         logger.info("[PRODUCT_SUPPORT_REASONER] No focused product → searching.")
-        search_tools_list = [t for t in tools_list if t.name in ["weaviate_semantic_text_search", "get_product_by_id"]]
+        search_tools_list = [t for t in _get_tools_list() if t.name in ["weaviate_semantic_text_search", "get_product_by_id"]]
         messages = product_support_search_prompt.format_messages(input=state.input)
-        response = await llm_client.ainvoke(messages, tools=search_tools_list)
+        response = await _get_llm().bind_tools(search_tools_list).ainvoke(messages)
 
         normalized = []
         if isinstance(response, AIMessage) and response.tool_calls:
@@ -759,7 +777,7 @@ async def product_support_reasoner(state: AgentState) -> dict:
 
     if not product_data:
         logger.info("[PRODUCT_SUPPORT_REASONER] Fetching product details...")
-        product = await tools["get_product_by_id"].ainvoke({"item_id": state.focused_product_id})
+        product = await _get_tools()["get_product_by_id"].ainvoke({"item_id": state.focused_product_id})
         if not product or "error" in product:
             return {"output": "Sorry, I couldn’t find details for that product."}
         product_data = product
@@ -776,7 +794,7 @@ async def product_support_reasoner(state: AgentState) -> dict:
         input=state.input
     )
 
-    response = await llm_client.ainvoke(messages)
+    response = await _get_llm().ainvoke(messages)
     answer = response.content if isinstance(response, AIMessage) else str(response)
 
     logger.info(f"[PRODUCT_SUPPORT_REASONER] Final answer: {answer}")

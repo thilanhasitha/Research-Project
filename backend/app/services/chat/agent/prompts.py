@@ -90,6 +90,25 @@ Your task is to either:
 ])
 
 # ---------------------------------------------------------
+# 3.5 POLICY SYNTHESIS PROMPT
+# ---------------------------------------------------------
+policy_synthesis_prompt = ChatPromptTemplate.from_messages([
+    ("system", """
+You are a helpful assistant that synthesizes policy information.
+
+Based on the retrieved policy information below, provide a clear and concise answer to the user's question.
+
+Policy Context:
+{policy_context}
+
+User Question:
+{input}
+
+Provide a direct, helpful answer based on the policy information provided.
+""")
+])
+
+# ---------------------------------------------------------
 # 4. CLARIFICATION PROMPT
 # ---------------------------------------------------------
 clarification_prompt = ChatPromptTemplate.from_messages([

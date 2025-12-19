@@ -3,6 +3,7 @@ import logging
 import sys
 from app.Database.mongo_client import MongoClient
 from app.routes.rss_routes import router as rss_router
+from app.routes.chat_routes import router as chat_router
 # from app.routes.rag_routes import router as rag_router
 from app.llm.client.ollama_client import OllamaClient
 from app.llm.LLMFactory import LLMFactory
@@ -29,6 +30,7 @@ mongo_client = MongoClient()
 
 # Register all Routers
 app.include_router(rss_router)
+app.include_router(chat_router)
 #app.include_router(rag_router)
 
 @app.on_event("startup")

@@ -3,6 +3,9 @@ from app.Database.repositories.rss_repository import RSSRepository
 # from app.Database.repositories.policy import PolicyRepository
 from app.services.chat.agent.schema import *
 from typing import Optional, List, Dict, Any
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def build_mongo_tools(mongo_service: Optional[RSSRepository] = None) -> List[StructuredTool]:
@@ -10,7 +13,7 @@ def build_mongo_tools(mongo_service: Optional[RSSRepository] = None) -> List[Str
         mongo_service = RSSRepository()
         
     async def _get_product_by_id(item_id: str):
-        """Fetch a single product by its ID."""
+        """Fetch a single RSS news article by its ID."""
         return await mongo_service.get_by_id(item_id)
     
     
@@ -22,39 +25,45 @@ def build_mongo_tools(mongo_service: Optional[RSSRepository] = None) -> List[Str
         StructuredTool.from_function(
             coroutine=_find_by_filter,
             name="mongo_find_by_filter",
-            description="Find rss_news in MongoDB collection using a filter dictionary",
+            description="Find rss_news in MongoDB collection using a filter dictionary. Use this to search news by title, content, source, or date.",
             args_schema=MongoFilterInput,
         ),
         StructuredTool.from_function(
             coroutine=_get_product_by_id,
             name="get_product_by_id",
-            description="Fetch a single product by its item_id. Use this when you have an exact product ID.",
+            description="Fetch a single RSS news article by its item_id. Use this when you have an exact article ID.",
             args_schema=MongoIDInput,
         ),
     ]
     
 
-def build_weaviate_tools(weaviate_repo: Optional[BaseWeaviateSearchRepository] = None) -> List[StructuredTool]:
-    if weaviate_repo is None:
-        weaviate_repo = BaseWeaviateSearchRepository()
+def build_weaviate_tools() -> List[StructuredTool]:
+    """
+    Build Weaviate tools for semantic search.
+    Note: These tools are placeholders until Weaviate search methods are implemented.
+    """
     
     async def _semantic_text_search(collection_name: str, query_text: str, limit: int = 10):
-        return weaviate_repo.semantic_text_search(collection_name, query_text, limit)
+        """Perform semantic text search in Weaviate."""
+        logger.warning("Weaviate semantic search not yet implemented. Returning empty results.")
+        return {"status": "not_implemented", "message": "Weaviate semantic search coming soon", "results": []}
 
     async def _hybrid_text_search(collection_name: str, query_text: str, filters: Optional[Dict[str, Any]] = None, limit: int = 10):
-        return weaviate_repo.hybrid_text_search(collection_name, query_text, filters, limit)
+        """Perform hybrid semantic + filter search in Weaviate."""
+        logger.warning("Weaviate hybrid search not yet implemented. Returning empty results.")
+        return {"status": "not_implemented", "message": "Weaviate hybrid search coming soon", "results": []}
 
     return [
         StructuredTool.from_function(
             coroutine=_semantic_text_search,
             name="weaviate_semantic_text_search",
-            description="Perform semantic text search in Weaviate using raw query text",
+            description="Perform semantic text search in Weaviate using raw query text (NOT YET IMPLEMENTED)",
             args_schema=TextSearchInput,
         ),
         StructuredTool.from_function(
             coroutine=_hybrid_text_search,
             name="weaviate_hybrid_text_search",
-            description="Perform hybrid semantic text + filter search in Weaviate",
+            description="Perform hybrid semantic text + filter search in Weaviate (NOT YET IMPLEMENTED)",
             args_schema=HybridTextSearchInput,
         ),
     ]

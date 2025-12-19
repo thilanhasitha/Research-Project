@@ -1,7 +1,7 @@
 import os
 from typing import Optional
-from langchain_ollama import OllamaLLM
-from langchain_core.language_models.llms import LLM
+from langchain_ollama import ChatOllama
+from langchain_core.language_models.chat_models import BaseChatModel
 from app.llm.LLMProvider import LLMProvider
 import json
 import logging
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class OllamaClient(LLMProvider):
 
     _instance: Optional['OllamaClient'] = None
-    _llm_instance: Optional[LLM] = None
+    _llm_instance: Optional[BaseChatModel] = None
 
     def __new__(cls) -> 'OllamaClient':
         if cls._instance is None:
@@ -30,16 +30,16 @@ class OllamaClient(LLMProvider):
             
             logger.info(f"OllamaClient initialized: host={self._ollama_host}, model={self._default_model}")
 
-    def create_llm(self, **kwargs) -> LLM:
+    def create_llm(self, **kwargs) -> BaseChatModel:
         config = {
             "model": kwargs.get("model", self._default_model),
             "temperature": kwargs.get("temperature", self._default_temperature),
             "base_url": kwargs.get("base_url", self._ollama_host),
         }
-        logger.info(f"Creating OllamaLLM with config: {config}")
-        return OllamaLLM(**config)
+        logger.info(f"Creating ChatOllama with config: {config}")
+        return ChatOllama(**config)
 
-    def get_llm(self) -> LLM:
+    def get_llm(self) -> BaseChatModel:
         if self._llm_instance is None:
             self._llm_instance = self.create_llm()
         return self._llm_instance
