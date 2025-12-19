@@ -143,7 +143,14 @@ graph.add_conditional_edges(
     }
 )
 
-graph.add_edge("general_responder", "formatter")
+graph.add_conditional_edges(
+    "general_responder",
+    should_execute_tools,
+    {
+        "tool_executor": "tool_executor",
+        "formatter": "formatter"
+    }
+)
 
 graph.add_conditional_edges(
     "tool_executor",
