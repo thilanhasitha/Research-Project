@@ -14,7 +14,7 @@ const HomePage = () => {
       buttonText: "Learn More",
       link: ROUTES.EXPLAINABLEAI,
       bgGradient: "from-purple-600 via-purple-700 to-indigo-800",
-      image: "https://gemini.google.com/share/4c9b90119e144b6f9e1e2c3e3f5e6d7?w=800&h=600&fit=crop"
+      image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&h=800&fit=crop"
     },
     {
       title: "Stock Market Fraud Detection",
@@ -23,7 +23,7 @@ const HomePage = () => {
        buttonText: "Explore Now",
       link: ROUTES.FRAUDE,
       bgGradient: "from-indigo-600 via-purple-700 to-pink-800",
-      image: "https://images.unsplash.com/photo-1549298916-b41d501d3772?w=800&h=600&fit=crop"
+      image: "https://images.unsplash.com/photo-1563986768609-322da13575f3?w=800&h=800&fit=crop"
     },
     {
       title: "Smart Portfolio Management",
@@ -32,7 +32,7 @@ const HomePage = () => {
       buttonText: "Manage Portfolio",
       link: ROUTES.PORTFOLIO,
       bgGradient: "from-pink-600 via-rose-700 to-orange-800",
-      image: "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=800&h=600&fit=crop"
+      image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&h=800&fit=crop"
     },
     {
       title: "AI-Powered Trading Chatbot",
@@ -41,7 +41,7 @@ const HomePage = () => {
       buttonText: "Start Trading",
       link: ROUTES.TRADINGBOT,
       bgGradient: "from-pink-600 via-rose-700 to-orange-800",
-      image: "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=800&h=600&fit=crop"
+      image: "https://images.unsplash.com/photo-1531746790731-6c087fecd65a?w=800&h=800&fit=crop"
     }
   ];
 
@@ -55,25 +55,25 @@ const HomePage = () => {
   const categories = [
     {
       name: "Explainable AI",
-      image: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=400&h=500&fit=crop",
+      image: "https://images.unsplash.com/photo-1639322537228-f710d846310a?w=400&h=500&fit=crop",
       link: ROUTES.EXPLAINABLEAI,
       description: "Transparent trading insights"
     },
     {
       name: "Fraud Detection",
-      image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=500&fit=crop",
+      image: "https://images.unsplash.com/photo-1614064641938-3bbee52942c7?w=400&h=500&fit=crop",
       link: ROUTES.FRAUDE,
       description: "Protect your investments"
     },
     {
       name: "Portfolio Management",
-      image: "https://images.unsplash.com/photo-1551107696-a4b0c5a0d9a2?w=400&h=500&fit=crop",
+      image: "https://images.unsplash.com/photo-1642790551116-18e150f248e5?w=400&h=500&fit=crop",
       link: ROUTES.PORTFOLIO,
       description: "Optimize your holdings"
     },
     {
       name: "Trading Chatbot",
-      image: "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=400&h=500&fit=crop",
+      image: "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=400&h=500&fit=crop",
       link: ROUTES.TRADINGBOT,
       description: "Instant AI guidance"
     }
