@@ -157,17 +157,58 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
+      mongo:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8083/ || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 6
       start_period: 30s
+    networks:
+      - mainnet
+
+  # --------------------
+  # Consumer Service (MongoDB CDC to Weaviate)
+  # --------------------
+  consumer:
+    build:
+      context: ./consumer
+      dockerfile: dockerfile
+    container_name: research_consumer
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+      - KAFKA_BROKER=kafka:9092
+      - KAFKA_TOPICS=research_db.research_db.rss_news
+      - KAFKA_GROUP_ID=research-consumer-group
+      - WEAVIATE_HOST=weaviate
+      - WEAVIATE_HTTP_PORT=8080
+      - WEAVIATE_GRPC_PORT=50051
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_MODEL=nomic-embed-text
+      - RETRY_DELAY=1
+      - MAX_RETRIES=3
+    depends_on:
+      kafka:
+        condition: service_healthy
+      kafka-connect:
+        condition: service_healthy
+      weaviate:
+        condition: service_started
+      ollama:
+        condition: service_started
+    networks:
+      - mainnet
+    volumes:
+      - ./consumer:/app
+      - consumer_logs:/app/logs
 
 volumes:
   mongo_data:
   ollama_data:
   kafka_data:
+  consumer_logs:
 
 networks:
   mainnet:
