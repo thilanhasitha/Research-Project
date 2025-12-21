@@ -6,7 +6,7 @@ from app.routes.rss_routes import router as rss_router
 from app.routes.chat_routes import router as chat_router
 # from app.routes.rag_routes import router as rag_router
 from app.llm.client.ollama_client import OllamaClient
-from app.llm.LLMFactory import LLMFactory
+from app.llm.LLMFactory import LLMFactory 
 
 
 app = FastAPI(title="Trading Sentiment Bot")
@@ -44,3 +44,6 @@ async def shutdown():
     # Close MongoDB
     await mongo_client.close()
     logger.info("MongoDB connection closed")
+
+
+

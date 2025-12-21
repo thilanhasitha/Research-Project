@@ -2,6 +2,7 @@ import weaviate
 from weaviate.classes.config import Property, DataType, Configure
 from weaviate.classes.query import Filter
 from typing import Dict, Any, List, Optional
+from datetime import datetime
 from config import config
 from scripts.models import RSSNews
 import logging
@@ -9,7 +10,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class WeaviateClient:
-    """Weaviate client wrapper for managing RSS News collection."""
+    """Weaviate client wrapper for managing RSS News collection with automatic vectorization."""
 
     def __init__(self):
         self.config = config
@@ -29,15 +30,15 @@ class WeaviateClient:
             )
             logger.info("Connected to Weaviate")
 
-            # Create only RSS News collection
-            self._setup_collection("rss_news", RSSNews)
+            # Create RSS News collection with automatic vectorization
+            self._setup_collection("RSSNews", RSSNews)
 
         except Exception as e:
             logger.error(f"Failed to connect to Weaviate: {e}")
             raise
 
     def _setup_collection(self, name: str, model_cls):
-        """Create Weaviate collection dynamically from RSSNews Pydantic model."""
+        """Create Weaviate collection dynamically from RSSNews Pydantic model with automatic vectorization."""
         try:
             if self.client.collections.exists(name):
                 logger.info(f"Collection {name} already exists")
@@ -45,40 +46,31 @@ class WeaviateClient:
                 return
 
             schema_properties = [
-                Property(name="mongoId", data_type=DataType.TEXT)
+                Property(name="mongoId", data_type=DataType.TEXT, skip_vectorization=True),
+                Property(name="title", data_type=DataType.TEXT),
+                Property(name="link", data_type=DataType.TEXT, skip_vectorization=True),
+                Property(name="content", data_type=DataType.TEXT),
+                Property(name="clean_text", data_type=DataType.TEXT),
+                Property(name="published", data_type=DataType.DATE, skip_vectorization=True),
+                Property(name="summary", data_type=DataType.TEXT),
+                Property(name="sentiment", data_type=DataType.TEXT, skip_vectorization=True),
+                Property(name="score", data_type=DataType.NUMBER, skip_vectorization=True),
             ]
 
-            # Map Pydantic fields into Weaviate schema
-            for field_name, field_type in model_cls.model_fields.items():
-                if field_type.annotation == str:
-                    dtype = DataType.TEXT
-                elif field_type.annotation == List[str]:
-                    dtype = DataType.TEXT_ARRAY
-                elif field_type.annotation in [int, float]:
-                    dtype = DataType.NUMBER
-                elif field_type.annotation == bool:
-                    dtype = DataType.BOOL
-                else:
-                    dtype = DataType.TEXT
-
-                schema_properties.append(
-                    Property(name=field_name, data_type=dtype)
-                )
-
-            # Enable AI embeddings via Ollama
-            vector_config = Configure.Vectors.text2vec_ollama(
+            # Enable automatic AI embeddings via Ollama text2vec module
+            vector_config = Configure.Vectorizer.text2vec_ollama(
                 api_endpoint=self.config.ollama_host,
                 model=self.config.ollama_model,
                 vectorize_collection_name=False
             )
 
-            # Create the collection
+            # Create the collection with automatic vectorization
             self.client.collections.create(
                 name=name,
                 properties=schema_properties,
-                vector_config=vector_config
+                vectorizer_config=vector_config
             )
-            logger.info(f"Created collection '{name}'")
+            logger.info(f"Created collection '{name}' with automatic vectorization via Ollama")
 
             self.collections[name] = self.client.collections.get(name)
 
@@ -86,11 +78,25 @@ class WeaviateClient:
             logger.error(f"Error setting up collection {name}: {e}")
             raise
 
-    def insert_object(self, collection_name: str, mongo_id: str, model_obj) -> bool:
-        """Insert RSS news into Weaviate."""
+    def insert_object(self, collection_name: str, mongo_id: str, model_obj: RSSNews) -> bool:
+        """Insert RSS news into Weaviate with automatic vectorization."""
         try:
             collection = self.collections[collection_name]
-            properties = {"mongoId": mongo_id, **model_obj.model_dump()}
+            
+            # Prepare properties - Weaviate will automatically generate vectors
+            properties = {
+                "mongoId": mongo_id,
+                "title": model_obj.title,
+                "link": model_obj.link,
+                "content": model_obj.content,
+                "clean_text": model_obj.clean_text,
+                "published": model_obj.published,
+                "summary": model_obj.summary,
+                "sentiment": model_obj.sentiment,
+                "score": model_obj.score
+            }
+            
+            # Insert - Ollama will automatically create embeddings
             collection.data.insert(properties=properties)
             logger.info(f"Inserted RSS news into {collection_name} with ID={mongo_id}")
             return True
@@ -98,8 +104,8 @@ class WeaviateClient:
             logger.error(f"Insert failed in {collection_name}: {e}")
             return False
 
-    def update_object(self, collection_name: str, mongo_id: str, model_obj) -> bool:
-        """Update RSS news in Weaviate."""
+    def update_object(self, collection_name: str, mongo_id: str, model_obj: RSSNews) -> bool:
+        """Update RSS news in Weaviate with automatic re-vectorization."""
         try:
             collection = self.collections[collection_name]
             result = collection.query.fetch_objects(
@@ -111,7 +117,20 @@ class WeaviateClient:
                 return False
 
             weaviate_uuid = str(result.objects[0].uuid)
-            properties = {"mongoId": mongo_id, **model_obj.model_dump()}
+            
+            # Prepare updated properties - Weaviate will automatically re-generate vectors
+            properties = {
+                "mongoId": mongo_id,
+                "title": model_obj.title,
+                "link": model_obj.link,
+                "content": model_obj.content,
+                "clean_text": model_obj.clean_text,
+                "published": model_obj.published,
+                "summary": model_obj.summary,
+                "sentiment": model_obj.sentiment,
+                "score": model_obj.score
+            }
+            
             collection.data.update(uuid=weaviate_uuid, properties=properties)
             logger.info(f"Updated RSS news in {collection_name} with ID={mongo_id}")
             return True
