@@ -39,7 +39,10 @@ class MessageProcessor:
             # Insert or update in Weaviate (automatic vectorization happens here)
             if cdc_message.operationType == OperationType.INSERT:
                 logger.info(f"Processing INSERT for RSS news ID: {mongo_id}")
-                return self.weaviate_client.insert_object("RSSNews", mongo_id, rss_news)
+                # Use upsert pattern: check if exists, update if so, otherwise insert
+                if not self.weaviate_client.update_object("RSSNews", mongo_id, rss_news):
+                    return self.weaviate_client.insert_object("RSSNews", mongo_id, rss_news)
+                return True
 
             elif cdc_message.operationType in [OperationType.UPDATE, OperationType.REPLACE]:
                 logger.info(f"Processing UPDATE for RSS news ID: {mongo_id}")

@@ -4,7 +4,7 @@ from weaviate.classes.query import Filter
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from config import config
-from scripts.models import RSSNews
+from Scripts.models import RSSNews
 import logging
 
 logger = logging.getLogger(__name__)

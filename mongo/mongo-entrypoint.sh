@@ -33,7 +33,7 @@ done
 echo "Initializing replica set..."
 mongosh --quiet --eval '
 try { rs.status() } 
-catch(e) { rs.initiate({_id:"rs0", members:[{_id:0, host:"localhost:27017"}]}) }
+catch(e) { rs.initiate({_id:"rs0", members:[{_id:0, host:"mongo:27017"}]}) }
 '
 
 until mongosh --quiet --eval 'rs.isMaster().ismaster' | grep -q "true"; do
@@ -41,7 +41,7 @@ until mongosh --quiet --eval 'rs.isMaster().ismaster' | grep -q "true"; do
 done
 
 # -------------------------------
-# Step 3: Create user for research_db
+# Step 3: Create user for research_db with Change Streams permissions
 # -------------------------------
 echo "Creating user for research_db..."
 mongosh --quiet <<EOF
@@ -50,11 +50,25 @@ if (!db.getUser("research")) {
   db.createUser({
     user: "research",
     pwd: "user",
-    roles: [{ role: "readWrite", db: "research_db" }]
+    roles: [
+      { role: "readWrite", db: "research_db" },
+      { role: "read", db: "local" },
+      { role: "read", db: "config" },
+      { role: "readAnyDatabase", db: "admin" }
+    ]
   })
-  print("User 'research' created successfully")
+  print("User 'research' created successfully with Change Streams permissions")
 } else {
-  print("User 'research' already exists")
+  print("User 'research' already exists - updating roles...")
+  db.updateUser("research", {
+    roles: [
+      { role: "readWrite", db: "research_db" },
+      { role: "read", db: "local" },
+      { role: "read", db: "config" },
+      { role: "readAnyDatabase", db: "admin" }
+    ]
+  })
+  print("User 'research' roles updated")
 }
 EOF
 
