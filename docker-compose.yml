@@ -97,13 +97,14 @@ services:
       MONGO_INITDB_DATABASE: research_db
     volumes:
       - mongo_data:/data/db
-    command: mongod --bind_ip_all
+      - ./mongo/mongo-entrypoint.sh:/usr/local/bin/mongo-entrypoint.sh
+    entrypoint: ["/usr/local/bin/mongo-entrypoint.sh"]
     healthcheck:
       test: ["CMD-SHELL", "mongosh --quiet --eval 'db.runCommand({ ping: 1 })' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 20s
+      start_period: 30s
     networks:
       - mainnet
 
