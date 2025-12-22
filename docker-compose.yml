@@ -83,6 +83,8 @@ services:
       - ./weaviate_data:/var/lib/weaviate
     depends_on:
       - ollama
+    networks:
+      - mainnet
 
   mongo:
     image: mongo:8.0
@@ -120,8 +122,8 @@ services:
       KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
       KAFKA_CFG_NODE_ID: 1
       KAFKA_KRAFT_CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
-      KAFKA_CFG_AUTOE_CREATE_TOPICS_ENABLE: true
-      KAFKA_CFG_OFFSTS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: true
+      KAFKA_CFG_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_CFG_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_CFG_TRANSACTION_STATE_LOG_MIN_ISR: 1
       ALLOW_PLAINTEXT_LISTENER: yes
@@ -133,6 +135,8 @@ services:
       timeout: 5s
       retries: 6
       start_period: 30s
+    networks:
+      - mainnet
 
   kafka-connect:
     image: quay.io/debezium/connect:2.7
