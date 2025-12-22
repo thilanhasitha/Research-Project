@@ -13,8 +13,16 @@ import logging
 router = APIRouter(prefix="/news-chat", tags=["News Chat"])
 logger = logging.getLogger(__name__)
 
-# Initialize RAG service
-news_rag = NewsRAGService()
+# Lazy-loaded RAG service instance
+_news_rag: Optional[NewsRAGService] = None
+
+
+def get_news_rag() -> NewsRAGService:
+    """Get or create NewsRAGService instance."""
+    global _news_rag
+    if _news_rag is None:
+        _news_rag = NewsRAGService()
+    return _news_rag
 
 
 # Request/Response Models
@@ -74,6 +82,7 @@ async def ask_question(request: NewsChatRequest):
         logger.info(f"User {request.user_id} asked: {request.message}")
         
         # Get answer using RAG
+        news_rag = get_news_rag()
         result = await news_rag.answer_question(
             question=request.message,
             context_limit=request.context_limit,
@@ -117,6 +126,7 @@ async def search_news(request: SearchNewsRequest):
             from datetime import timedelta
             date_from = datetime.utcnow() - timedelta(days=request.days)
         
+        news_rag = get_news_rag()
         results = await news_rag.search_news_by_text(
             query=request.query,
             limit=request.limit,
@@ -140,6 +150,7 @@ async def get_trending(days: int = 7, limit: int = 10):
     try:
         logger.info(f"Getting trending news for last {days} days")
         
+        news_rag = get_news_rag()
         results = await news_rag.get_trending_topics(days=days, limit=limit)
         
         return {
@@ -167,6 +178,7 @@ async def analyze_sentiment(request: SentimentRequest):
     try:
         logger.info(f"Analyzing sentiment for topic: {request.topic}, days: {request.days}")
         
+        news_rag = get_news_rag()
         result = await news_rag.get_sentiment_summary(
             topic=request.topic,
             days=request.days
@@ -191,6 +203,7 @@ async def health_check():
     """
     try:
         # Try to get collection info
+        news_rag = get_news_rag()
         if news_rag.weaviate_client.is_connected:
             collection = news_rag.weaviate_client.collection
             
@@ -227,6 +240,7 @@ async def get_statistics():
     Get general statistics about the news database.
     """
     try:
+        news_rag = get_news_rag()
         collection = news_rag.weaviate_client.collection
         
         # Get total count
