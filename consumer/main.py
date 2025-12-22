@@ -1,8 +1,8 @@
 import logging
 import sys
 import time
-from scripts.kafka_consumer import MultiKafkaConsumer 
-from scripts.message_processor import MessageProcessor
+from Scripts.kafka_consumer import MultiKafkaConsumer 
+from Scripts.message_processor import MessageProcessor
 from config import config
 
 logging.basicConfig(
@@ -20,7 +20,7 @@ def main():
     """Main application entry point."""
     logger.info("Starting Kafka to Weaviate consumer service")
     logger.info(
-        f"Configuration: Kafka={config.kafka_broker}, Topic={config.kafka_topic}, "
+        f"Configuration: Kafka={config.kafka_broker}, Topics={config.kafka_topics}, "
         f"Weaviate={config.weaviate_host}:{config.weaviate_http_port}"
     )
 
