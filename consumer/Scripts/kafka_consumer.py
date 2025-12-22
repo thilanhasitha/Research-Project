@@ -2,7 +2,7 @@ import json
 from kafka import KafkaConsumer
 from typing import Dict, Any, Optional, List, Tuple
 from config import config
-from scripts.models import KafkaMessage
+from Scripts.models import KafkaMessage
 import logging
 
 logger = logging.getLogger(__name__)

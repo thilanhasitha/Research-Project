@@ -331,7 +331,7 @@ async def cart_reasoner(state: AgentState) -> dict:
         and pending_action.get("variety")
         and pending_action.get("color")
     ):
-        logger.info("[CART_REASONER] ✅ All details present. Adding to cart WITHOUT LLM.")
+        logger.info("[CART_REASONER]  All details present. Adding to cart WITHOUT LLM.")
         logger.info(f"[CART_REASONER] Cart details: item_id={pending_action['item_id']}, "
                    f"variety={pending_action['variety']}, color={pending_action['color']}")
         

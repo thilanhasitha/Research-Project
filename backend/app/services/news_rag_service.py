@@ -18,7 +18,8 @@ class NewsRAGService:
     
     def __init__(self):
         self.weaviate_client = WeaviateClient(collection_name="RSSNews")
-        self.llm = LLMFactory.get_llm("ollama")
+        self.llm_provider = LLMFactory.get_provider("ollama")
+        self.llm = self.llm_provider.get_llm()
         self._ensure_connected()
     
     def _ensure_connected(self):
@@ -212,7 +213,7 @@ INSTRUCTIONS:
 ANSWER:"""
             
             logger.info(f"Generating answer with {len(news_articles)} articles as context")
-            answer = await self.llm.generate(prompt)
+            answer = await self.llm_provider.generate(prompt)
             
             # Step 4: Prepare response
             response = {
