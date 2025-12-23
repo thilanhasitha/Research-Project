@@ -2,6 +2,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 import sys
+import asyncio
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.interval import IntervalTrigger
 from app.Database.mongo_client import MongoClient
 from app.routes.rss_routes import router as rss_router
 from app.routes.chat_routes import router as chat_router
@@ -27,6 +30,31 @@ app.add_middleware(
 )
 
 logger = logging.getLogger(__name__)
+
+# Initialize scheduler
+scheduler = AsyncIOScheduler()
+
+# Background task for RSS collection
+async def collect_rss_feeds():
+    """Background task to collect RSS feeds periodically."""
+    try:
+        from app.services.news.rss_service import RSSService
+        from app.routes.rss_routes import RSS_FEEDS
+        
+        logger.info("Starting scheduled RSS collection...")
+        llm = LLMFactory.get_provider("ollama")
+        service = RSSService(llm)
+        
+        for feed_url in RSS_FEEDS:
+            try:
+                response = await service.fetch_and_store(feed_url)
+                logger.info(f"RSS feed {feed_url}: {response}")
+            except Exception as e:
+                logger.error(f"Error processing feed {feed_url}: {e}")
+        
+        logger.info("Scheduled RSS collection completed")
+    except Exception as e:
+        logger.error(f"RSS collection job failed: {e}")
 
 @app.get("/")
 def read_root():
@@ -64,9 +92,28 @@ async def startup():
     # Connect MongoDB
     await mongo_client.connect()
     logger.info("MongoDB connection initialized")
+    
+    # Start the scheduler
+    scheduler.add_job(
+        collect_rss_feeds,
+        trigger=IntervalTrigger(minutes=30),  # Run every 30 minutes
+        id='rss_collection_job',
+        name='Collect RSS feeds',
+        replace_existing=True
+    )
+    scheduler.start()
+    logger.info("RSS collection scheduler started (runs every 30 minutes)")
+    
+    # Run initial RSS collection
+    asyncio.create_task(collect_rss_feeds())
+    logger.info("Initial RSS collection triggered")
 
 @app.on_event("shutdown")
 async def shutdown():
+    # Shutdown scheduler
+    scheduler.shutdown()
+    logger.info("RSS collection scheduler stopped")
+    
     # Close MongoDB
     await mongo_client.close()
     logger.info("MongoDB connection closed")
