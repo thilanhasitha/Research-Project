@@ -195,20 +195,14 @@ class NewsRAGService:
             context = "\n\n".join(context_parts)
             
             # Step 3: Generate answer using LLM
-            prompt = f"""You are a financial news analyst assistant. Use the following news articles to answer the user's question accurately and concisely.
+            prompt = f"""Based on these news articles, answer the user's question concisely.
 
-NEWS CONTEXT:
+ARTICLES:
 {context}
 
-USER QUESTION:
-{question}
+QUESTION: {question}
 
-INSTRUCTIONS:
-1. Answer the question based ONLY on the provided news articles
-2. If the articles don't contain enough information, say so
-3. Cite specific articles when making claims (e.g., "According to Article 1...")
-4. Highlight sentiment and market trends when relevant
-5. Keep your answer concise but informative (2-3 paragraphs max)
+Provide a brief, focused answer (2-3 sentences) citing relevant articles.
 
 ANSWER:"""
             
