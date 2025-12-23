@@ -1,50 +1,47 @@
 import React, { useState, useEffect } from 'react';
 import ChatFloatingButton from './ChatFloatingButton';
 import ChatPanel from './ChatPanel';
-
-
+import { askQuestion, checkHealth } from '../../../utils/newsRAGService';
 
 // Create a message object
-const createMessage = (text, isUser = false, products = null, variantData = null) => ({
+const createMessage = (text, isUser = false, sources = null, metadata = null) => ({
   message: text,
   isUser,
-  products,
-  variantData,
+  sources,
+  metadata,
   timestamp: Date.now(),
 });
-
-// Random delay for typing effect
-const getResponseDelay = () => Math.floor(Math.random() * 700) + 500;
-
-// Generate fake AI responses (frontend only)
-const generateFakeResponse = async (text) => {
-  const responses = [
-    "Sure! Let me help you with that.",
-    "Great choice! Would you like to see more similar products?",
-    "I’m here to assist you with anything you need!",
-    "That’s interesting! Tell me more.",
-    "I understand. Let me guide you further."
-  ];
-
-  return {
-    message: responses[Math.floor(Math.random() * responses.length)],
-    products: null,
-    variantData: null,
-  };
-};
 
 const AIChat = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
-    createMessage("Hi! I'm your shopping assistant. How can I help you today?", false)
+    createMessage("Hi! I'm your financial news assistant. I can help you with the latest news, market trends, and sentiment analysis. How can I help you today?", false)
   ]);
   const [newMessage, setNewMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-
-  /* Remove backend connection status */
-  const [connectionStatus, setConnectionStatus] = useState('connected');
+  const [connectionStatus, setConnectionStatus] = useState('checking');
   const [error, setError] = useState(null);
+
+  // Check backend connection on mount
+  useEffect(() => {
+    const verifyConnection = async () => {
+      try {
+        const health = await checkHealth();
+        if (health.success && health.healthy) {
+          setConnectionStatus('connected');
+        } else {
+          setConnectionStatus('disconnected');
+          setError('Unable to connect to the news service');
+        }
+      } catch (err) {
+        setConnectionStatus('disconnected');
+        setError('News service is offline');
+      }
+    };
+
+    verifyConnection();
+  }, []);
 
   // Reset unread count when chat opens
   useEffect(() => {
@@ -55,29 +52,56 @@ const AIChat = () => {
   }, [isOpen]);
 
  
-  const simulateAIResponse = async (userMessage) => {
+  // Get AI response using RAG pipeline
+  const getAIResponse = async (userMessage) => {
     setIsTyping(true);
+    setError(null);
 
-    const delay = getResponseDelay();
+    try {
+      // Call the RAG API
+      const response = await askQuestion(userMessage, {
+        userId: 'anonymous',
+        includeSources: true,
+        contextLimit: 3  // Reduced from 5 to 3 for faster responses
+      });
 
-    const [aiResponse] = await Promise.all([
-      generateFakeResponse(userMessage),
-      new Promise(resolve => setTimeout(resolve, delay))
-    ]);
+      setIsTyping(false);
 
-    setIsTyping(false);
+      if (response.success) {
+        const aiMessage = createMessage(
+          response.answer,
+          false,
+          response.sources,
+          {
+            contextUsed: response.contextUsed,
+            timestamp: response.timestamp
+          }
+        );
 
-    const aiMessage = createMessage(
-      aiResponse.message,
-      false,
-      aiResponse.products,
-      aiResponse.variantData
-    );
+        setMessages(prev => [...prev, aiMessage]);
 
-    setMessages(prev => [...prev, aiMessage]);
+        if (!isOpen) {
+          setUnreadCount(prev => prev + 1);
+        }
+      } else {
+        // Handle error
+        const errorMessage = createMessage(
+          response.error || "Sorry, I couldn't process your request. Please try again.",
+          false
+        );
+        setMessages(prev => [...prev, errorMessage]);
+        setError(response.error);
+      }
 
-    if (!isOpen) {
-      setUnreadCount(prev => prev + 1);
+    } catch (err) {
+      setIsTyping(false);
+      const errorMessage = createMessage(
+        "I'm having trouble connecting to the news service. Please try again later.",
+        false
+      );
+      setMessages(prev => [...prev, errorMessage]);
+      setError(err.message);
+      console.error('[AIChat] Error:', err);
     }
   };
 
@@ -91,23 +115,23 @@ const AIChat = () => {
     const text = newMessage;
     setNewMessage('');
 
-    simulateAIResponse(text);
+    getAIResponse(text);
   };
 
-  /* Quick actions (frontend only) */
+  /* Quick actions for common queries */
   const handleQuickAction = (action, label) => {
     if (isTyping) return;
 
     const userMessage = createMessage(label, true);
     setMessages(prev => [...prev, userMessage]);
 
-    simulateAIResponse(label);
+    getAIResponse(label);
   };
 
   /* Start new conversation */
   const handleNewConversation = () => {
     setMessages([
-      createMessage("Hi! I'm your shopping assistant. How can I help you today?", false)
+      createMessage("Hi! I'm your financial news assistant. I can help you with the latest news, market trends, and sentiment analysis. How can I help you today?", false)
     ]);
     setError(null);
   };
