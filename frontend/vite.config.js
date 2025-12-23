@@ -7,5 +7,22 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [
     react(),
-    tailwindcss(),],
+    tailwindcss(),
+  ],
+  server: {
+    proxy: {
+      '/news-chat': {
+        target: 'http://backend:8001',
+        changeOrigin: true,
+      },
+      '/chat': {
+        target: 'http://backend:8001',
+        changeOrigin: true,
+      },
+      '/rss': {
+        target: 'http://backend:8001',
+        changeOrigin: true,
+      }
+    }
+  }
 })
