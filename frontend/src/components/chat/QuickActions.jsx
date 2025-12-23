@@ -1,12 +1,12 @@
 import React from 'react';
-import { Package, ShoppingBag, CreditCard, RotateCcw } from 'lucide-react';
+import { TrendingUp, BarChart3, Heart, Newspaper } from 'lucide-react';
 
 const QuickActions = ({ onActionClick, disabled = false, connectionStatus = 'unknown' }) => {
   const actions = [
-    { icon: Package, label: 'Sentiment Check', action: 'sentiment_check' },
-    { icon: ShoppingBag, label: 'Market Pulse', action: 'market_pulse' },
-    { icon: CreditCard, label: 'Set Alerts', action: 'set_alerts' },
-    { icon: RotateCcw, label: 'Trend Tracker', action: 'trend_tracker' }
+    { icon: Newspaper, label: 'Latest News', action: 'latest_news' },
+    { icon: TrendingUp, label: 'Market Trends', action: 'market_trends' },
+    { icon: Heart, label: 'Sentiment Analysis', action: 'sentiment_analysis' },
+    { icon: BarChart3, label: 'Stock Performance', action: 'stock_performance' }
   ];
 
   const getButtonStyle = () => {
