@@ -35,6 +35,7 @@ class OllamaClient(LLMProvider):
             "model": kwargs.get("model", self._default_model),
             "temperature": kwargs.get("temperature", self._default_temperature),
             "base_url": kwargs.get("base_url", self._ollama_host),
+            "timeout": kwargs.get("timeout", 240),  # 4 minutes timeout for LLM calls
         }
         logger.info(f"Creating ChatOllama with config: {config}")
         return ChatOllama(**config)
