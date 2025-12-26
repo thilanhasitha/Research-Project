@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+import asyncio
 from typing import Any, List, Dict, Optional
 from pydantic import ValidationError
 from langchain_core.messages import AIMessage, HumanMessage, BaseMessage
@@ -26,6 +27,20 @@ def _get_tools_list():
 
 def _get_schema_manager():
     return shared.get_schema_manager()
+
+# LLM timeout constant (4 minutes)
+LLM_TIMEOUT = 240
+
+async def _invoke_llm_with_timeout(llm, messages, timeout=LLM_TIMEOUT, **kwargs):
+    """Wrapper to invoke LLM with timeout protection."""
+    try:
+        return await asyncio.wait_for(
+            llm.ainvoke(messages, **kwargs),
+            timeout=timeout
+        )
+    except asyncio.TimeoutError:
+        logger.error(f"LLM call timed out after {timeout} seconds")
+        raise TimeoutError(f"LLM request exceeded {timeout} second timeout")
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +99,8 @@ async def classify_intent(state: AgentState) -> dict:
         raise
     
     try:
-        response = await _get_llm().ainvoke(
+        response = await _invoke_llm_with_timeout(
+            _get_llm(),
             messages,
             generation_config={"response_mime_type": "application/json"}
         )
@@ -184,22 +200,48 @@ async def general_responder(state: AgentState) -> dict:
     """(General Flow) Responds to general queries with tool access."""
     logger.info(f"[GENERAL_RESPONDER] Input: {state.input}")
     
+    # Check if input is a greeting or simple conversation
+    input_lower = state.input.lower().strip()
+    greetings = ["hi", "hello", "hey", "good morning", "good afternoon", "good evening", 
+                 "how are you", "what's up", "whats up", "howdy", "greetings"]
+    
+    is_greeting = any(greeting in input_lower for greeting in greetings)
+    
     # Get conversation history
     langchain_history = _convert_history_to_langchain_messages(state.conversation_history[-4:])
     
-    # Format messages with tools available
+    # Format messages
     messages = general_responder_prompt.format_messages(
         input=state.input,
         history=langchain_history
     )
     
-    # Try to use tools if model supports them, otherwise fallback to no tools
+    # For greetings, respond directly without tools
+    if is_greeting and len(input_lower.split()) <= 5:
+        logger.info(f"[GENERAL_RESPONDER] Detected greeting, responding without tools")
+        try:
+            response = await _invoke_llm_with_timeout(_get_llm(), messages)
+            output = response.content if isinstance(response, AIMessage) else str(response)
+            logger.info(f"[GENERAL_RESPONDER] Direct greeting response: {output}")
+            return {"output": output}
+        except asyncio.TimeoutError:
+            logger.error(f"[GENERAL_RESPONDER] LLM call timed out")
+            return {"output": "Hello! How can I help you today?"}
+    
+    # For other queries, try to use tools if appropriate
     try:
         llm_with_tools = _get_llm().bind_tools(_get_tools_list())
-        response = await llm_with_tools.ainvoke(messages)
+        response = await _invoke_llm_with_timeout(llm_with_tools, messages)
+    except asyncio.TimeoutError:
+        logger.error(f"[GENERAL_RESPONDER] LLM call timed out")
+        return {"output": "I apologize, but the request took too long to process. Please try again with a simpler query."}
     except Exception as e:
         logger.warning(f"[GENERAL_RESPONDER] Tool binding failed ({e}), falling back to no tools")
-        response = await _get_llm().ainvoke(messages)
+        try:
+            response = await _invoke_llm_with_timeout(_get_llm(), messages)
+        except asyncio.TimeoutError:
+            logger.error(f"[GENERAL_RESPONDER] LLM fallback call timed out")
+            return {"output": "I apologize, but the request took too long to process. Please try again."}
     logger.info(f"[GENERAL_RESPONDER] Raw LLM response: {response!r}")
     
     # Check if LLM made tool calls
@@ -779,7 +821,7 @@ async def product_support_reasoner(state: AgentState) -> dict:
         logger.info("[PRODUCT_SUPPORT_REASONER] Fetching product details...")
         product = await _get_tools()["get_product_by_id"].ainvoke({"item_id": state.focused_product_id})
         if not product or "error" in product:
-            return {"output": "Sorry, I couldn’t find details for that product."}
+            return {"output": "Sorry, I couldn't find details for that product."}
         product_data = product
 
     logger.info("[PRODUCT_SUPPORT_REASONER] Generating answer from product data.")
