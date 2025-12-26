@@ -12,26 +12,39 @@ def build_mongo_tools(mongo_service: Optional[RSSRepository] = None) -> List[Str
     if mongo_service is None:
         mongo_service = RSSRepository()
         
-    async def _get_product_by_id(item_id: str):
+    async def _get_news_by_id(item_id: str):
         """Fetch a single RSS news article by its ID."""
         return await mongo_service.get_by_id(item_id)
     
     
-    async def _find_by_filter(filter_dict: dict, limit: int = 100):
+    async def _find_news_by_filter(filter_dict: dict, limit: int = 20):
         """Query MongoDB with a custom filter."""
         return await mongo_service.find_by_filter(filter_dict, limit)
+    
+    async def _get_latest_sri_lankan_news(limit: int = 10):
+        """Get the latest Sri Lankan stock market and economic news from economynext."""
+        return await mongo_service.get_latest_news(limit)
 
     return [
         StructuredTool.from_function(
-            coroutine=_find_by_filter,
-            name="mongo_find_by_filter",
-            description="Find rss_news in MongoDB collection using a filter dictionary. Use this to search news by title, content, source, or date.",
+            coroutine=_find_news_by_filter,
+            name="search_sri_lankan_news",
+            description="""Search Sri Lankan stock market and economic news from economynext. 
+            Use this tool when user asks about Sri Lankan stocks, economy, market trends, or any financial news about Sri Lanka.
+            Filter by title or content using regex patterns. Example: {"title": "stock"} or {"content": "market"}""",
             args_schema=MongoFilterInput,
         ),
         StructuredTool.from_function(
-            coroutine=_get_product_by_id,
-            name="get_product_by_id",
-            description="Fetch a single RSS news article by its item_id. Use this when you have an exact article ID.",
+            coroutine=_get_latest_sri_lankan_news,
+            name="get_latest_news",
+            description="""Get the latest Sri Lankan stock market and economic news articles from economynext.
+            Use this when user asks for recent news, latest updates, or what's happening in Sri Lankan markets.""",
+            args_schema=MongoIDInput,
+        ),
+        StructuredTool.from_function(
+            coroutine=_get_news_by_id,
+            name="get_news_by_id",
+            description="Fetch a specific news article by its MongoDB ID.",
             args_schema=MongoIDInput,
         ),
     ]
