@@ -22,7 +22,12 @@ class OllamaProvider(LLMProvider):
         return ChatOllama(
             model=self.model,
             base_url="http://localhost:11434",
-            temperature=self.temperature
+            temperature=self.temperature,
+            # Optimize for speed
+            num_predict=150,  # Limit response length for faster generation
+            num_ctx=2048,     # Reduce context window for speed
+            top_p=0.9,        # Faster sampling
+            repeat_penalty=1.1
         )
 
     # ------------------------------------

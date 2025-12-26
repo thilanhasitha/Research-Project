@@ -6,6 +6,7 @@ Handles querying news from Weaviate and generating contextual responses using LL
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 from app.Database.weaviate_client import WeaviateClient
+from app.Database.repositories.rss_repository import RSSRepository
 from app.llm.LLMFactory import LLMFactory
 from weaviate.classes.query import Filter
 import logging
@@ -18,6 +19,7 @@ class NewsRAGService:
     
     def __init__(self):
         self.weaviate_client = WeaviateClient(collection_name="RSSNews")
+        self.rss_repository = RSSRepository()
         self.llm_provider = LLMFactory.get_provider("ollama")
         self.llm = self.llm_provider.get_llm()
         self._ensure_connected()
@@ -37,6 +39,7 @@ class NewsRAGService:
     ) -> List[Dict[str, Any]]:
         """
         Search news using text-based semantic search.
+        Falls back to MongoDB if Weaviate has no results.
         
         Args:
             query: Natural language search query
@@ -71,14 +74,15 @@ class NewsRAGService:
                 else:
                     filters = Filter.all_of(filter_conditions)
             
-            # Perform hybrid search (combines vector + BM25)
-            logger.info(f"Searching news with query: '{query}', limit: {limit}")
+            # Perform hybrid search with optimized settings for speed
+            logger.info(f"Searching Weaviate with query: '{query}', limit: {limit}")
             
             response = collection.query.hybrid(
                 query=query,
                 limit=limit,
                 filters=filters,
-                return_metadata=["score"]
+                return_metadata=["score"],
+                alpha=0.75  # Favor vector search (0.5 = balanced, 1.0 = pure vector)
             )
             
             results = []
@@ -97,11 +101,78 @@ class NewsRAGService:
                     "relevance_score": obj.metadata.score if hasattr(obj.metadata, 'score') else None
                 })
             
-            logger.info(f"Found {len(results)} news articles")
-            return results
+            if results:
+                logger.info(f"Found {len(results)} news articles in Weaviate")
+                return results
+            
+            # For speed, return empty if Weaviate has no results
+            # Only fallback to MongoDB if explicitly needed
+            logger.warning("No results from Weaviate")
+            return []
             
         except Exception as e:
-            logger.error(f"Error searching news: {e}", exc_info=True)
+            logger.error(f"Error searching Weaviate, falling back to MongoDB: {e}", exc_info=True)
+            try:
+                mongo_results = await self._search_mongodb(query, limit, sentiment_filter, date_from)
+                logger.info(f"MongoDB fallback successful: {len(mongo_results)} articles")
+                return mongo_results
+            except Exception as mongo_err:
+                logger.error(f"MongoDB fallback also failed: {mongo_err}", exc_info=True)
+                return []
+    
+    async def _search_mongodb(
+        self, 
+        query: str, 
+        limit: int,
+        sentiment_filter: Optional[str] = None,
+        date_from: Optional[datetime] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Search MongoDB for news articles using text search.
+        """
+        try:
+            # Build MongoDB filter
+            filter_dict = {}
+            
+            # Text search in title and content
+            if query:
+                filter_dict["$or"] = [
+                    {"title": {"$regex": query, "$options": "i"}},
+                    {"content": {"$regex": query, "$options": "i"}}
+                ]
+            
+            if sentiment_filter:
+                filter_dict["sentiment"] = sentiment_filter
+            
+            if date_from:
+                filter_dict["published"] = {"$gte": date_from}
+            
+            # Use the repository to search
+            articles = await self.rss_repository.find_by_filter(filter_dict, limit)
+            
+            # Format results to match Weaviate structure
+            formatted = []
+            for article in articles:
+                if "error" in article:
+                    continue
+                formatted.append({
+                    "id": article.get("_id"),
+                    "mongoId": article.get("_id"),
+                    "title": article.get("title", "No title"),
+                    "content": article.get("content", ""),
+                    "clean_text": article.get("clean_text", ""),
+                    "summary": article.get("content", "")[:200] + "..." if article.get("content") else "",
+                    "link": article.get("link", ""),
+                    "published": article.get("published", ""),
+                    "sentiment": article.get("sentiment", "neutral"),
+                    "score": 0.5,  # Default score for MongoDB results
+                    "relevance_score": None
+                })
+            
+            return formatted
+            
+        except Exception as e:
+            logger.error(f"Error searching MongoDB: {e}", exc_info=True)
             return []
     
     async def get_trending_topics(self, days: int = 7, limit: int = 10) -> List[Dict[str, Any]]:
@@ -181,30 +252,26 @@ class NewsRAGService:
                     "context_used": 0
                 }
             
-            # Step 2: Build context from retrieved articles
+            # Step 2: Build compact context (optimized for speed)
             context_parts = []
             for idx, article in enumerate(news_articles, 1):
+                # Use only essential info for faster processing
+                summary = article.get('summary', article.get('clean_text', ''))
+                if summary:
+                    # Truncate to 150 chars for speed
+                    summary = summary[:150] + '...' if len(summary) > 150 else summary
                 context_parts.append(
-                    f"Article {idx}:\n"
-                    f"Title: {article['title']}\n"
-                    f"Summary: {article['summary']}\n"
-                    f"Sentiment: {article['sentiment']} (score: {article['score']})\n"
-                    f"Published: {article['published']}\n"
+                    f"{idx}. {article['title']} - {summary}"
                 )
             
-            context = "\n\n".join(context_parts)
+            context = "\n".join(context_parts)
             
-            # Step 3: Generate answer using LLM
-            prompt = f"""Based on these news articles, answer the user's question concisely.
-
-ARTICLES:
+            # Step 3: Generate answer using LLM with compact prompt
+            prompt = f"""Answer concisely based on these news:
 {context}
 
-QUESTION: {question}
-
-Provide a brief, focused answer (2-3 sentences) citing relevant articles.
-
-ANSWER:"""
+Q: {question}
+A:"""
             
             logger.info(f"Generating answer with {len(news_articles)} articles as context")
             answer = await self.llm_provider.generate(prompt)
