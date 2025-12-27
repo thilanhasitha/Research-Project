@@ -255,23 +255,39 @@ class NewsRAGService:
             # Step 2: Build compact context (optimized for speed)
             context_parts = []
             for idx, article in enumerate(news_articles, 1):
-                # Use only essential info for faster processing
-                summary = article.get('summary', article.get('clean_text', ''))
-                if summary:
-                    # Truncate to 150 chars for speed
-                    summary = summary[:150] + '...' if len(summary) > 150 else summary
+                # Use clean_text or content for better context
+                content = article.get('clean_text', article.get('content', ''))
+                if not content:
+                    content = article.get('summary', '')
+                
+                # Truncate to 300 chars for better context
+                content = content[:300] + '...' if len(content) > 300 else content
+                
+                # Include publication date for context
+                pub_date = article.get('published', 'Unknown date')
                 context_parts.append(
-                    f"{idx}. {article['title']} - {summary}"
+                    f"[Article {idx}]\nTitle: {article['title']}\nDate: {pub_date}\nContent: {content}\n"
                 )
             
             context = "\n".join(context_parts)
             
-            # Step 3: Generate answer using LLM with compact prompt
-            prompt = f"""Answer concisely based on these news:
+            # Step 3: Generate answer using LLM with strict prompt
+            prompt = f"""You are a news assistant. Answer the user's question using ONLY the information from the news articles provided below. 
+
+STRICT RULES:
+- Use ONLY the information from the articles below
+- Do NOT use your general knowledge or training data
+- If the articles don't contain information to answer the question, say "I don't have information about this in the recent news articles."
+- Do NOT mention Bitcoin, cryptocurrency, or any other topics not present in the articles
+- Be concise and factual
+- Cite article numbers when referencing information (e.g., "According to Article 1...")
+
+NEWS ARTICLES:
 {context}
 
-Q: {question}
-A:"""
+USER QUESTION: {question}
+
+ANSWER (based only on the articles above):"""
             
             logger.info(f"Generating answer with {len(news_articles)} articles as context")
             answer = await self.llm_provider.generate(prompt)

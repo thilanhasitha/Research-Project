@@ -18,5 +18,5 @@ COPY . .
 # Expose backend port
 EXPOSE 8001
 
-# Run the FastAPI server
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]
+# Run the FastAPI server with increased timeout for LLM operations
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001", "--reload", "--timeout-keep-alive", "300"]

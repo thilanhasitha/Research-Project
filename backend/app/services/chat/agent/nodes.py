@@ -59,6 +59,23 @@ async def classify_intent(state: AgentState) -> dict:
     """Classify the user's intent and update current/last intent state."""
     logger.info(f"[CLASSIFY_INTENT] Input: {state.input}")
     
+    # Early detection of greetings to bypass LLM classification
+    input_lower = state.input.lower().strip()
+    greetings = ["hi", "hello", "hey", "good morning", "good afternoon", "good evening", 
+                 "how are you", "what's up", "whats up", "howdy", "greetings"]
+    
+    is_simple_greeting = (
+        any(input_lower.startswith(greeting) or input_lower == greeting for greeting in greetings)
+        and len(input_lower.split()) <= 5
+    )
+    
+    if is_simple_greeting:
+        logger.info(f"[CLASSIFY_INTENT] Detected simple greeting, bypassing LLM classification")
+        return {
+            "current_intent": "general",
+            "last_intent": state.last_intent
+        }
+    
     history = state.conversation_history or []
     logger.info(f"[CLASSIFY_INTENT] History length: {len(history)}")
     
@@ -203,9 +220,29 @@ async def general_responder(state: AgentState) -> dict:
     # Check if input is a greeting or simple conversation
     input_lower = state.input.lower().strip()
     greetings = ["hi", "hello", "hey", "good morning", "good afternoon", "good evening", 
-                 "how are you", "what's up", "whats up", "howdy", "greetings"]
+                 "how are you", "what's up", "whats up", "howdy", "greetings", "hi there",
+                 "hello there"]
     
-    is_greeting = any(greeting in input_lower for greeting in greetings)
+    is_greeting = any(input_lower.startswith(greeting) or input_lower == greeting 
+                      for greeting in greetings)
+    
+    # For greetings, respond directly without tools and without checking history
+    if is_greeting and len(input_lower.split()) <= 5:
+        logger.info(f"[GENERAL_RESPONDER] Detected greeting, responding without tools or LLM")
+        # Return a simple, direct greeting without invoking LLM to avoid hallucinations
+        greeting_responses = [
+            "Hello! How can I assist you today?",
+            "Hi there! How can I help you?",
+            "Good day! What can I do for you today?",
+            "Hello! I'm here to help. What would you like to know?"
+        ]
+        # Use a deterministic response based on the input
+        response_idx = len(input_lower) % len(greeting_responses)
+        output = greeting_responses[response_idx]
+        return {
+            "output": output,
+            "tool_results": [{"text": output}]
+        }
     
     # Get conversation history
     langchain_history = _convert_history_to_langchain_messages(state.conversation_history[-4:])
@@ -215,18 +252,6 @@ async def general_responder(state: AgentState) -> dict:
         input=state.input,
         history=langchain_history
     )
-    
-    # For greetings, respond directly without tools
-    if is_greeting and len(input_lower.split()) <= 5:
-        logger.info(f"[GENERAL_RESPONDER] Detected greeting, responding without tools")
-        try:
-            response = await _invoke_llm_with_timeout(_get_llm(), messages)
-            output = response.content if isinstance(response, AIMessage) else str(response)
-            logger.info(f"[GENERAL_RESPONDER] Direct greeting response: {output}")
-            return {"output": output}
-        except asyncio.TimeoutError:
-            logger.error(f"[GENERAL_RESPONDER] LLM call timed out")
-            return {"output": "Hello! How can I help you today?"}
     
     # For other queries, try to use tools if appropriate
     try:
@@ -661,6 +686,43 @@ async def format_results(state: AgentState) -> dict:
         return {"output": output}
 
     results: List[Dict[str, Any]] = state.tool_results
+
+    # Handle news articles from Sri Lankan news sources
+    if state.current_intent in ["news_search", "market_analysis", "data_lookup"] or state.last_intent in ["news_search", "market_analysis", "data_lookup"]:
+        logger.info(f"[FORMATTER] Formatting news articles. Found {len(results)} results.")
+        
+        # Filter out results with errors
+        valid_news = [r for r in results if isinstance(r, dict) and "error" not in r and ("title" in r or "content" in r)]
+        
+        if not valid_news:
+            logger.info("[FORMATTER] No valid news articles found.")
+            return {"output": "I couldn't find any relevant news articles at the moment. Please try a different search query."}
+        
+        # Format news articles
+        output = f"I found {len(valid_news)} news article(s) from economynext:\n\n"
+        
+        for idx, article in enumerate(valid_news[:5], 1):
+            title = article.get("title", "No title")
+            published = article.get("published", "Unknown date")
+            link = article.get("link", "")
+            content_preview = article.get("content", "")[:150] + "..." if article.get("content") else ""
+            
+            output += f"**{idx}. {title}**\n"
+            if published and published != "Unknown date":
+                output += f"   📅 Published: {published}\n"
+            if content_preview:
+                output += f"   {content_preview}\n"
+            if link:
+                output += f"   🔗 [Read more]({link})\n"
+            output += "\n"
+        
+        if len(valid_news) > 5:
+            output += f"\n...and {len(valid_news) - 5} more articles.\n"
+        
+        output += "\nWould you like to know more about any specific article?"
+        
+        logger.info(f"[FORMATTER] Returning formatted news articles")
+        return {"output": output}
 
     if state.products and len(state.products) > 0:
         output = f"I found {len(state.products)} item(s) for you! 🛍️\n\n"

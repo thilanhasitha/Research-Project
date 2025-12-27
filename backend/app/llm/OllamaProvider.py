@@ -10,7 +10,7 @@ class OllamaProvider(LLMProvider):
     Implements a consistent async generate() method for the project.
     """
 
-    def __init__(self, model: str = "llama3:latest", temperature: float = 0.2):
+    def __init__(self, model: str = "llama3:latest", temperature: float = 0.3):
         self.model = model
         self.temperature = temperature
         self._llm = None  # Singleton LLM instance
@@ -23,10 +23,10 @@ class OllamaProvider(LLMProvider):
             model=self.model,
             base_url="http://localhost:11434",
             temperature=self.temperature,
-            # Optimize for speed
-            num_predict=150,  # Limit response length for faster generation
-            num_ctx=2048,     # Reduce context window for speed
-            top_p=0.9,        # Faster sampling
+            # Balanced settings for quality and speed
+            num_predict=300,  # Allow longer responses
+            num_ctx=4096,     # Sufficient context window for news articles
+            top_p=0.9,        # Good sampling
             repeat_penalty=1.1
         )
 
