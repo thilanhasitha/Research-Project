@@ -219,22 +219,30 @@ async def general_responder(state: AgentState) -> dict:
     
     # Check if input is a greeting or simple conversation
     input_lower = state.input.lower().strip()
-    greetings = ["hi", "hello", "hey", "good morning", "good afternoon", "good evening", 
-                 "how are you", "what's up", "whats up", "howdy", "greetings", "hi there",
-                 "hello there"]
     
-    is_greeting = any(input_lower.startswith(greeting) or input_lower == greeting 
-                      for greeting in greetings)
+    # Expanded greeting patterns
+    greeting_patterns = [
+        "hi", "hello", "hey", "good morning", "good afternoon", "good evening",
+        "how are you", "how r u", "how r you", "hows it going", "how's it going",
+        "what's up", "whats up", "sup", "howdy", "greetings", "hi there",
+        "hello there", "good day", "yo", "hiya"
+    ]
+    
+    # Check if message is primarily a greeting (max 8 words to handle "hello how are you doing today")
+    is_greeting = (
+        any(input_lower.startswith(greeting) or input_lower == greeting for greeting in greeting_patterns)
+        and len(input_lower.split()) <= 8
+    )
     
     # For greetings, respond directly without tools and without checking history
-    if is_greeting and len(input_lower.split()) <= 5:
+    if is_greeting:
         logger.info(f"[GENERAL_RESPONDER] Detected greeting, responding without tools or LLM")
         # Return a simple, direct greeting without invoking LLM to avoid hallucinations
         greeting_responses = [
-            "Hello! How can I assist you today?",
-            "Hi there! How can I help you?",
-            "Good day! What can I do for you today?",
-            "Hello! I'm here to help. What would you like to know?"
+            "Hello! How can I assist you with Sri Lankan stock market information today?",
+            "Hi there! I'm here to help with financial news and market insights. What would you like to know?",
+            "Good day! I can help you with the latest Sri Lankan stock market news and financial information. How may I assist you?",
+            "Hello! I'm your financial assistant for Sri Lankan markets. What can I help you with today?"
         ]
         # Use a deterministic response based on the input
         response_idx = len(input_lower) % len(greeting_responses)
