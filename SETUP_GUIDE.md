@@ -1,10 +1,10 @@
-# 🚀 Setup Guide: RSS News Collection with LLM Summary & Sentiment
+#  Setup Guide: RSS News Collection with LLM Summary & Sentiment
 
 This guide will help you set up and troubleshoot the RSS news collection system with Ollama LLM for summary and sentiment generation.
 
 ---
 
-## 📋 Prerequisites
+##  Prerequisites
 
 1. **Docker & Docker Compose** installed
 2. **Python 3.11+** (for local testing)
@@ -12,7 +12,7 @@ This guide will help you set up and troubleshoot the RSS news collection system 
 
 ---
 
-## 🔧 Step-by-Step Setup
+##  Step-by-Step Setup
 
 ### 1. Start All Services
 
@@ -28,12 +28,12 @@ docker-compose ps
 ```
 
 Expected services:
-- ✅ `research_backend` (port 8001)
-- ✅ `ollama_new` (port 11434)
-- ✅ `research_mongo` (port 27017)
-- ✅ `weaviate` (port 8080)
-- ✅ `kafka_new` (port 9092)
-- ✅ `kafka-connect_new` (port 8083)
+-  `research_backend` (port 8001)
+-  `ollama_new` (port 11434)
+-  `research_mongo` (port 27017)
+-  `weaviate` (port 8080)
+-  `kafka_new` (port 9092)
+-  `kafka-connect_new` (port 8083)
 
 ---
 
@@ -114,12 +114,12 @@ exit
 ```
 
 The test will check:
-1. MongoDB connection ✅
-2. Ollama LLM availability ✅
-3. RSS feed fetching ✅
-4. Summary generation ✅
-5. Sentiment analysis ✅
-6. Complete flow (save to MongoDB) ✅
+1. MongoDB connection 
+2. Ollama LLM availability 
+3. RSS feed fetching 
+4. Summary generation 
+5. Sentiment analysis 
+6. Complete flow (save to MongoDB) 
 
 #### Option B: Using API Endpoints
 
@@ -159,13 +159,13 @@ exit
 
 ---
 
-## 🐛 Troubleshooting
+##  Troubleshooting
 
 ### Issue 1: "Ollama connection refused"
 
 **Symptoms:**
 ```
-❌ Ollama test failed: Connection refused
+ Ollama test failed: Connection refused
 ```
 
 **Solutions:**
@@ -195,7 +195,7 @@ exit
 
 **Symptoms:**
 ```
-❌ model 'llama3.2' not found
+ model 'llama3.2' not found
 ```
 
 **Solutions:**
@@ -217,7 +217,7 @@ exit
 
 **Symptoms:**
 ```
-❌ MongoDB connection failed: Authentication failed
+ MongoDB connection failed: Authentication failed
 ```
 
 **Solutions:**
@@ -272,7 +272,7 @@ exit
 
 **Symptoms:**
 ```
-❌ JSONDecodeError: Expecting value
+ JSONDecodeError: Expecting value
 ```
 
 **Cause:** LLM returns text instead of JSON
@@ -314,7 +314,7 @@ JSON response:
 
 ---
 
-## 📊 Expected Output
+##  Expected Output
 
 When everything works correctly:
 
@@ -353,7 +353,7 @@ When everything works correctly:
 
 ---
 
-## 🎯 Quick Health Check Commands
+##  Quick Health Check Commands
 
 ```bash
 # 1. Check all services
@@ -377,7 +377,7 @@ docker exec -it research_backend python test_rss_flow.py
 
 ---
 
-## 🔄 Common Workflow
+##  Common Workflow
 
 ### Daily Usage:
 
@@ -413,7 +413,7 @@ docker-compose logs -f backend
 
 ---
 
-## 📚 Additional Resources
+##  Additional Resources
 
 - **Ollama Models**: https://ollama.com/library
 - **FastAPI Docs**: http://localhost:8001/docs
@@ -422,7 +422,7 @@ docker-compose logs -f backend
 
 ---
 
-## 🆘 Still Having Issues?
+##  Still Having Issues?
 
 1. Check all logs:
    ```bash
