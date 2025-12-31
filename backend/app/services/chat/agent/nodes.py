@@ -139,7 +139,7 @@ async def classify_intent(state: AgentState) -> dict:
         logger.debug(f"[CLASSIFY_INTENT] Parsed JSON result: {result}")
         new_intent = result.get("intent", "general")
         
-        valid_intents = ["product_search", "product_support", "cart_addition", "policy", "unclear", "general", "unsupported"]
+        valid_intents = ["news_search", "market_analysis", "data_lookup", "policy", "unclear", "general", "unsupported"]
         if new_intent not in valid_intents:
             logger.warning(f"[CLASSIFY_INTENT] Invalid intent '{new_intent}', defaulting to 'general'")
             new_intent = "general"
@@ -220,30 +220,51 @@ async def general_responder(state: AgentState) -> dict:
     # Check if input is a greeting or simple conversation
     input_lower = state.input.lower().strip()
     
-    # Expanded greeting patterns
+    # Expanded greeting patterns including casual terms
     greeting_patterns = [
         "hi", "hello", "hey", "good morning", "good afternoon", "good evening",
         "how are you", "how r u", "how r you", "hows it going", "how's it going",
-        "what's up", "whats up", "sup", "howdy", "greetings", "hi there",
-        "hello there", "good day", "yo", "hiya"
+        "what's up", "whats up", "sup", "wassup", "howdy", "greetings", "hi there",
+        "hello there", "good day", "yo", "hiya", "heya"
     ]
+    
+    # Casual greeting terms that can appear anywhere in short messages
+    casual_terms = ["bro", "man", "dude", "mate", "buddy", "friend"]
     
     # Check if message is primarily a greeting (max 8 words to handle "hello how are you doing today")
     is_greeting = (
-        any(input_lower.startswith(greeting) or input_lower == greeting for greeting in greeting_patterns)
-        and len(input_lower.split()) <= 8
+        (any(input_lower.startswith(greeting) or input_lower == greeting for greeting in greeting_patterns)
+         and len(input_lower.split()) <= 8)
+        or 
+        # Also detect casual greetings like "what's up bro", "hey man", "sup dude"
+        (any(greeting in input_lower for greeting in greeting_patterns) 
+         and any(term in input_lower for term in casual_terms)
+         and len(input_lower.split()) <= 8)
     )
     
     # For greetings, respond directly without tools and without checking history
     if is_greeting:
         logger.info(f"[GENERAL_RESPONDER] Detected greeting, responding without tools or LLM")
         # Return a simple, direct greeting without invoking LLM to avoid hallucinations
-        greeting_responses = [
-            "Hello! How can I assist you with Sri Lankan stock market information today?",
-            "Hi there! I'm here to help with financial news and market insights. What would you like to know?",
-            "Good day! I can help you with the latest Sri Lankan stock market news and financial information. How may I assist you?",
-            "Hello! I'm your financial assistant for Sri Lankan markets. What can I help you with today?"
-        ]
+        # Match the user's tone (casual vs formal)
+        has_casual_term = any(term in input_lower for term in casual_terms)
+        
+        if has_casual_term:
+            # Casual, friendly responses
+            greeting_responses = [
+                "What's up! I'm doing great! How can I help you with stock market info or Sri Lankan news today?",
+                "Hey! All good here, ready to help! What are you interested in - stocks, news, or market insights?",
+                "Yo! I'm here and ready! What financial topic can I help you explore?",
+                "Hey man! Doing great! What can I get you - latest news, market updates, or investment info?"
+            ]
+        else:
+            # Standard professional responses
+            greeting_responses = [
+                "Hello! How can I assist you with Sri Lankan stock market information today?",
+                "Hi there! I'm here to help with financial news and market insights. What would you like to know?",
+                "Good day! I can help you with the latest Sri Lankan stock market news and financial information. How may I assist you?",
+                "Hello! I'm your financial assistant for Sri Lankan markets. What can I help you with today?"
+            ]
         # Use a deterministic response based on the input
         response_idx = len(input_lower) % len(greeting_responses)
         output = greeting_responses[response_idx]
@@ -255,10 +276,14 @@ async def general_responder(state: AgentState) -> dict:
     # Get conversation history
     langchain_history = _convert_history_to_langchain_messages(state.conversation_history[-4:])
     
-    # Format messages
+    # Check if this is a news-related intent - if so, we need to force tool usage
+    is_news_intent = state.current_intent in ["news_search", "market_analysis", "data_lookup"]
+    
+    # Format messages - include intent for context
     messages = general_responder_prompt.format_messages(
         input=state.input,
-        history=langchain_history
+        history=langchain_history,
+        intent=state.current_intent or "general"
     )
     
     # For other queries, try to use tools if appropriate
@@ -290,10 +315,19 @@ async def general_responder(state: AgentState) -> dict:
                 "args": call.get("args", {})
             })
     else:
-        # No tool calls, just return the text response
-        output = response.content if isinstance(response, AIMessage) else str(response)
-        logger.info(f"[GENERAL_RESPONDER] Direct response (no tools): {output}")
-        return {"output": output}
+        # If it's a news intent and LLM didn't call tools, force a get_latest_news call
+        if is_news_intent:
+            logger.warning(f"[GENERAL_RESPONDER] News intent but no tool calls from LLM. Forcing get_latest_news call.")
+            normalized.append({
+                "name": "get_latest_news",
+                "args": {"limit": 10}
+            })
+            has_tool_calls = True
+        else:
+            # No tool calls, just return the text response
+            output = response.content if isinstance(response, AIMessage) else str(response)
+            logger.info(f"[GENERAL_RESPONDER] Direct response (no tools): {output}")
+            return {"output": output}
     
     logger.info(f"[GENERAL_RESPONDER] Normalized tool calls: {normalized}")
     return {
@@ -509,10 +543,11 @@ async def tool_executor(state: AgentState) -> dict:
 
         logger.info(f"[TOOL_EXECUTOR] Executing tool: {tool_name} with args: {args}")
 
-        if tool_name in tools:
+        tools_dict = _get_tools()
+        if tool_name in tools_dict:
             try:
-                result = await _get_tools()[tool_name].ainvoke(args)
-                logger.info(f"[TOOL_EXECUTOR] Result: {result}")
+                result = await tools_dict[tool_name].ainvoke(args)
+                logger.info(f"[TOOL_EXECUTOR] Result from {tool_name}: {result}")
                 
                 if tool_name == "add_to_cart":
                     cart_action_result = result
@@ -592,6 +627,9 @@ async def tool_executor(state: AgentState) -> dict:
                         products.extend(formatted_products)
                         executed_results.extend(formatted_products)
                 else:
+                    # Handle news articles or other results
+                    if tool_name in ["get_latest_news", "search_sri_lankan_news", "get_news_by_id"]:
+                        logger.info(f"[TOOL_EXECUTOR] News tool '{tool_name}' returned {len(result) if isinstance(result, list) else 1} article(s)")
                     executed_results.extend(result if isinstance(result, list) else [result])
                     
             except Exception as e:
@@ -653,13 +691,13 @@ async def format_results(state: AgentState) -> dict:
         if cart_result.get("success"):
             if cart_result.get('action') == 'added':
                 output = (
-                    f"✅ **{cart_result.get('item_name')}** has been added to your cart.\n"
+                    f" **{cart_result.get('item_name')}** has been added to your cart.\n"
                     f"(Price: ${cart_result.get('price')}, Quantity: {cart_result.get('quantity')})"
                 )
             else:
-                output = f"✅ Quantity for **{cart_result.get('item_name')}** updated to {cart_result.get('quantity')}."
+                output = f" Quantity for **{cart_result.get('item_name')}** updated to {cart_result.get('quantity')}."
         else:
-            output = f"❌ {cart_result.get('message')}"
+            output = f" {cart_result.get('message')}"
         
         logger.info(f"[FORMATTER] Cart action output: {output}")
         return {"output": output}
@@ -697,10 +735,13 @@ async def format_results(state: AgentState) -> dict:
 
     # Handle news articles from Sri Lankan news sources
     if state.current_intent in ["news_search", "market_analysis", "data_lookup"] or state.last_intent in ["news_search", "market_analysis", "data_lookup"]:
-        logger.info(f"[FORMATTER] Formatting news articles. Found {len(results)} results.")
+        logger.info(f"[FORMATTER] Formatting news articles. Intent: {state.current_intent}, Results count: {len(results)}")
+        logger.info(f"[FORMATTER] Raw results structure: {results[:2] if len(results) > 0 else 'empty'}")  # Log first 2 for debugging
         
         # Filter out results with errors
         valid_news = [r for r in results if isinstance(r, dict) and "error" not in r and ("title" in r or "content" in r)]
+        
+        logger.info(f"[FORMATTER] Valid news articles after filtering: {len(valid_news)}")
         
         if not valid_news:
             logger.info("[FORMATTER] No valid news articles found.")
@@ -717,11 +758,11 @@ async def format_results(state: AgentState) -> dict:
             
             output += f"**{idx}. {title}**\n"
             if published and published != "Unknown date":
-                output += f"   📅 Published: {published}\n"
+                output += f"    Published: {published}\n"
             if content_preview:
                 output += f"   {content_preview}\n"
             if link:
-                output += f"   🔗 [Read more]({link})\n"
+                output += f"   [Read more]({link})\n"
             output += "\n"
         
         if len(valid_news) > 5:
