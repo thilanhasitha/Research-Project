@@ -10,7 +10,7 @@ The News Chat API provides conversational AI capabilities for querying financial
 MongoDB → Kafka (CDC) → Consumer → Weaviate (Vector DB) → RAG Service → LLM → User
 ```
 
-### Data Flow
+# Data Flow
 1. **News articles** are stored in MongoDB (`research_db.rss_news`)
 2. **Change Data Capture (CDC)** via Debezium detects changes
 3. **Kafka** streams events to the consumer
