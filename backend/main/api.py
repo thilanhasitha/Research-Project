@@ -9,18 +9,18 @@ import uuid
 
 from src.db.db import db  # <--- Import from your db.py 
 
-from src.models.config import DATA_PATH,DATE_COL,TICKER_COL, PREV_CLOSE_COL, DAY_CLOSE_COL, CHANGE_PCT_COL, TURNOVER_COL
+from src.models.model_1.config import DATA_PATH,DATE_COL,TICKER_COL, PREV_CLOSE_COL, DAY_CLOSE_COL, CHANGE_PCT_COL, TURNOVER_COL
 
-from src.models.data_preprocessing import engineer_features
-from src.models.model import apply_model
-from src.models.visualization import plot_price_with_anomalies, plot_anomaly_counts
+from src.models.model_1.data_preprocessing import engineer_features
+from src.models.model_1.model import apply_model
+from src.models.model_1.visualization import plot_price_with_anomalies, plot_anomaly_counts
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 # Load model/scaler once
-MODEL_PATH = "src/models/pumpdump_local_iforest_model.joblib"
-SCALER_PATH = "src/models/pumpdump_local_scaler.joblib"
+MODEL_PATH = "src/models/model_1/pumpdump_local_iforest_model.joblib"
+SCALER_PATH = "src/models/model_1/pumpdump_local_scaler.joblib"
 model = joblib.load(MODEL_PATH)
 scaler = joblib.load(SCALER_PATH)
 
