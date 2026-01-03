@@ -8,55 +8,78 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  Area,
+  AreaChart,
 } from "recharts";
 
-// --- Styled Components ---
 const ChartCard = styled.div`
   background-color: #161b22;
-  border-radius: 8px;
+  border-radius: 12px;
   border: 1px solid #30363d;
-  display: flex;
-  flex-direction: column;
   padding: 20px;
   height: 100%;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 `;
 
 const ChartTitle = styled.h3`
-  color: #c9d1d9;
+  color: #58a6ff;
   font-size: 18px;
-  margin-bottom: 15px;
-  font-weight: 500;
+  margin-bottom: 20px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
 `;
 
-// --- Component ---
 export default function LineChartComponent({ chartData }) {
   return (
     <ChartCard>
-      <ChartTitle>Anomalous Activity Over Time</ChartTitle>
+      <ChartTitle>Detection Confidence Over Time</ChartTitle>
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart
+        <AreaChart
           data={chartData}
-          margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+          margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
         >
-          <CartesianGrid strokeDasharray="3 3" stroke="#30363d" />
-          <XAxis dataKey="name" stroke="#8b949e" />
-          <YAxis stroke="#8b949e" />
+          <defs>
+            <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#58a6ff" stopOpacity={0.3} />
+              <stop offset="95%" stopColor="#58a6ff" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid
+            strokeDasharray="3 3"
+            stroke="#30363d"
+            vertical={false}
+          />
+          <XAxis
+            dataKey="name"
+            stroke="#8b949e"
+            fontSize={12}
+            tickLine={false}
+            axisLine={false}
+          />
+          <YAxis
+            stroke="#8b949e"
+            fontSize={12}
+            tickLine={false}
+            axisLine={false}
+            domain={[0, 1]}
+          />
           <Tooltip
             contentStyle={{
-              backgroundColor: "#161b22",
-              border: "1px solid #30363d",
+              backgroundColor: "#0d1117",
+              border: "1px solid #58a6ff",
+              borderRadius: "8px",
+              color: "#c9d1d9",
             }}
-            labelStyle={{ color: "#c9d1d9" }}
           />
-          <Line
+          <Area
             type="monotone"
             dataKey="anomalies"
             stroke="#58a6ff"
             strokeWidth={3}
-            dot={false}
-            name="Anomalies"
+            fillOpacity={1}
+            fill="url(#colorScore)"
           />
-        </LineChart>
+        </AreaChart>
       </ResponsiveContainer>
     </ChartCard>
   );
