@@ -9,16 +9,13 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-// --- Constants ---
-const PIE_COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042"];
+// High-contrast palette: Emerald for Normal, Ruby for Fraud
+const COLORS = ["#f85149", "#2ea043"];
 
-// --- Styled Components ---
 const ChartCard = styled.div`
   background-color: #161b22;
-  border-radius: 8px;
+  border-radius: 12px;
   border: 1px solid #30363d;
-  display: flex;
-  flex-direction: column;
   padding: 20px;
   height: 100%;
 `;
@@ -30,41 +27,45 @@ const ChartTitle = styled.h3`
   font-weight: 500;
 `;
 
-// --- Component ---
 export default function PieChartComponent({ chartData }) {
   return (
     <ChartCard>
-      <ChartTitle>Anomalies by Fraud Type</ChartTitle>
+      <ChartTitle>Data Composition</ChartTitle>
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie
             data={chartData}
-            dataKey="value"
-            nameKey="name"
             cx="50%"
             cy="50%"
+            innerRadius={60} // Makes it a donut chart
             outerRadius={80}
-            fill="#8884d8"
-            labelLine={false}
-            label={({ name, percent }) =>
-              `${name} (${(percent * 100).toFixed(0)}%)`
-            }
+            paddingAngle={5}
+            dataKey="value"
           >
             {chartData.map((entry, index) => (
               <Cell
                 key={`cell-${index}`}
-                fill={PIE_COLORS[index % PIE_COLORS.length]}
+                fill={COLORS[index % COLORS.length]}
+                stroke="none"
               />
             ))}
           </Pie>
           <Tooltip
             contentStyle={{
-              backgroundColor: "#161b22",
+              borderRadius: "8px",
+              backgroundColor: "#0d1117",
               border: "1px solid #30363d",
             }}
-            labelStyle={{ color: "#c9d1d9" }}
           />
-          <Legend wrapperStyle={{ fontSize: "12px" }} iconSize={10} />
+          <Legend
+            verticalAlign="bottom"
+            height={36}
+            formatter={(value) => (
+              <span style={{ color: "#c9d1d9", fontSize: "14px" }}>
+                {value}
+              </span>
+            )}
+          />
         </PieChart>
       </ResponsiveContainer>
     </ChartCard>
