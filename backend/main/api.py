@@ -19,7 +19,7 @@ app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 # Load model/scaler once
-MODEL_PATH = "src/models/model_1/pumpdump_local_iforest_model.joblib"
+MODEL_PATH = "src/models/model_1/pumpdump_local_model.joblib"
 SCALER_PATH = "src/models/model_1/pumpdump_local_scaler.joblib"
 model = joblib.load(MODEL_PATH)
 scaler = joblib.load(SCALER_PATH)
