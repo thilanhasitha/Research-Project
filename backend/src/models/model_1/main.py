@@ -1,101 +1,72 @@
+import os
+import joblib
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
-from sklearn.decomposition import PCA
 from sklearn.ensemble import IsolationForest
-from pd_logic import load_and_clean, engineer_features, validate_dump
-from config import *
+from sklearn.preprocessing import RobustScaler
+from pd_logic import load_and_clean, engineer_features, DATE_COL, TICKER_COL
+
+# Configuration
+from config import DATA_PATH, OUT_PREFIX, CONTAMINATION_FRACTION, N_ESTIMATORS, RANDOM_STATE
+
+def save_master_fraud_map(df_feat):
+    anomalies = df_feat[df_feat['anomaly_label'] == -1].copy()
+    if anomalies.empty: return
+
+    plt.figure(figsize=(16, 9))
+    plt.style.use('bmh')
+    
+    scatter = plt.scatter(anomalies[DATE_COL], anomalies['gap_return'], 
+                          c=anomalies['anomaly_score'], cmap='YlOrRd', 
+                          s=150, edgecolors='black', alpha=0.8)
+    
+    for i in range(len(anomalies)):
+        plt.text(anomalies[DATE_COL].iloc[i], anomalies['gap_return'].iloc[i] + 0.015, 
+                 anomalies[TICKER_COL].iloc[i], fontsize=9, fontweight='bold', rotation=90)
+
+    plt.colorbar(scatter, label='AI Confidence Score')
+    plt.title("Master Fraud Map: Detected Pump Events (No Look-Ahead)", fontsize=16)
+    plt.xlabel("Date")
+    plt.ylabel("Price Jump %")
+    plt.tight_layout()
+    plt.savefig(f"{OUT_PREFIX}_master_report.png")
+    plt.close()
 
 def main():
-    print("--- Starting Pump & Dump Detection ---")
+    print("--- Training Pump & Dump Detection Model ---")
     
-    # 1. Load
-    df = load_and_clean()
-    print(f"Loaded {len(df)} rows.")
+    # 1. Load and Process
+    df = load_and_clean(DATA_PATH)
+    df_feat, feat_cols = engineer_features(df)
     
-    # 2. Features
-    df_feat, X_scaled, feat_cols = engineer_features(df)
+    # 2. Scaling (Crucial for Isolation Forest)
+    scaler = RobustScaler()
+    X_scaled = scaler.fit_transform(df_feat[feat_cols])
     
-    # 3. Model
+    # 3. Train Model
     model = IsolationForest(n_estimators=N_ESTIMATORS, 
-                            contamination="auto", 
+                            contamination=CONTAMINATION_FRACTION, 
                             random_state=RANDOM_STATE)
     model.fit(X_scaled)
     
-    # 4. Detect
+    # 4. Save Assets for the API
+    joblib.dump(model, "isolation_forest_model.joblib")
+    joblib.dump(scaler, "robust_scaler.joblib")
+    
+    # 5. Detection Logic (Labeling)
     df_feat["anomaly_score"] = -model.score_samples(X_scaled)
-    # Calculate threshold based on top 3% (CONTAMINATION_FRACTION)
     threshold = np.percentile(df_feat["anomaly_score"], 100 * (1 - CONTAMINATION_FRACTION))
     
-    # Define Fraud: AI Flag + Price > 10% + Volume > 3x
-    mask = (df_feat["anomaly_score"] >= threshold) & \
-           (df_feat["gap_return"] > 0.10) & \
-           (df_feat["vol_surge_ratio"] > 3.0)
-           
+    # Rules: AI thinks it's weird AND significant price jump
+    mask = (df_feat["anomaly_score"] >= threshold) & (df_feat["gap_return"] > 0.10)
     df_feat["anomaly_label"] = 1
     df_feat.loc[mask, "anomaly_label"] = -1
     
-    # 5. Validate Dump (The Crash)
-    df_results = validate_dump(df_feat)
-    
-    # 6. PCA Visualization
-    pca = PCA(n_components=2)
-    X_pca = pca.fit_transform(X_scaled)
-    
-    plt.figure(figsize=(10, 6))
-    plt.scatter(X_pca[df_results['anomaly_label']==1, 0], 
-                X_pca[df_results['anomaly_label']==1, 1], 
-                alpha=0.2, c='blue', label='Normal')
-    plt.scatter(X_pca[df_results['anomaly_label']==-1, 0], 
-                X_pca[df_results['anomaly_label']==-1, 1], 
-                c='red', label='Pump Candidates', edgecolors='black')
-    plt.title("Forensic Analysis: PCA Feature Isolation")
-    plt.legend()
-    plt.savefig(f"{OUT_PREFIX}_pca_plot.png")
-    
-    # 7. Final Report
-    flagged = df_results[df_results['anomaly_label'] == -1]
-    confirmed = flagged[flagged['reversion_ratio'] > 0.5]
-    
-    print(f"Total Anomalies Flagged: {len(flagged)}")
-    print(f"Confirmed with 'Dump' Phase (>50% reversion): {len(confirmed)}")
-    
-    df_results.to_csv(f"{OUT_PREFIX}_final_results.csv", index=False)
-    print(f"Results saved to {OUT_PREFIX}_final_results.csv")
+    # 6. Export Results
+    save_master_fraud_map(df_feat)
+    df_feat[df_feat['anomaly_label'] == -1].to_csv("all_fraud_cases.csv", index=False)
+    print(f"✓ Training Complete. Assets saved.")
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
-
-
-
-
-
-    import pandas as pd
-from config import TICKER_COL, DATE_COL, CHANGE_PCT_COL
-
-# Load the results your model just created
-results_df = pd.read_csv("pumpdump_local_final_results.csv")
-
-# Filter for the most suspicious cases
-final_report = results_df[results_df['anomaly_label'] == -1].sort_values(by='reversion_ratio', ascending=False)
-
-# Select key columns for the research table
-final_report = final_report[[TICKER_COL, DATE_COL, CHANGE_PCT_COL, 'vol_surge_ratio', 'reversion_ratio']]
-
-print("\n" + "="*60)
-print("       TOP 10 CONFIRMED PUMP & DUMP EVENTS (2023)")
-print("="*60)
-print(final_report.head(10).to_string(index=False))
-print("="*60)
-
-# Save this specific table for your report
-final_report.head(10).to_csv("research_top_10_cases.csv", index=False)
