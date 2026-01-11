@@ -15,8 +15,13 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - MONGO_URI=mongodb+srv://research:user@cluster0.sc4zaj7.mongodb.net/research_db?appName=Cluster0
+      - DB_NAME=research_db
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_MODEL=llama3
+      - OLLAMA_TEMPERATURE=0.2
     depends_on:
-      - mongo
+      ollama:
+        condition: service_started
     command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
     networks:
       - mainnet
@@ -43,28 +48,46 @@ services:
   # --------------------
   # Ollama
   # --------------------
-  # ollama:
-  #   image: ollama/ollama:latest
-  #   container_name: ollama
-  #   ports:
-  #     - "11434:11434"
-  #   volumes:
-  #     - ollama_data:/root/.ollama
-  #     - ./ollama/start-ollama.sh:/start-ollama.sh
-  #   restart: unless-stopped
-  #   entrypoint: ["/start-ollama.sh"]
-  #   environment:
-  #     - NVIDIA_VISIBLE_DEVICES=all
-  #   networks:
-  #     - mainnet
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama_new
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+      - ./ollama/start-ollama.sh:/start-ollama.sh
+    restart: unless-stopped
+    entrypoint: ["/start-ollama.sh"]
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    networks:
+      - mainnet
 
   # --------------------
   # MongoDB
   # --------------------
+
+  weaviate:
+    image: semitechnologies/weaviate:1.33.0
+    ports:
+      - "8080:8080"
+    environment:
+      ENABLE_MODULES: 'text2vec-ollama'
+      DEFAULT_VECTORIZER_MODULE: 'text2vec-ollama'
+      OLLAMA_API_ENDPOINT: 'http://ollama:11434'
+      QUERY_DEFAULTS_LIMIT: 25
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
+      PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
+      CLUSTER_HOSTNAME: 'node1'
+    volumes:
+      - ./weaviate_data:/var/lib/weaviate
+    depends_on:
+      - ollama
+    networks:
+      - mainnet
+
   mongo:
-    build:
-      context: ./mongo
-      dockerfile: Dockerfile
+    image: mongo:8.0
     container_name: research_mongo
     ports:
       - "27017:27017"
@@ -74,19 +97,123 @@ services:
       MONGO_INITDB_DATABASE: research_db
     volumes:
       - mongo_data:/data/db
-      - ./mongo/policies.json:/docker-entrypoint-initdb.d/policies.json
+      - ./mongo/mongo-entrypoint.sh:/usr/local/bin/mongo-entrypoint.sh
+    entrypoint: ["/usr/local/bin/mongo-entrypoint.sh"]
     healthcheck:
       test: ["CMD-SHELL", "mongosh --quiet --eval 'db.runCommand({ ping: 1 })' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 20s
+      start_period: 30s
     networks:
       - mainnet
+
+  kafka:
+    image: bitnami/kafka:3.6
+    container_name: kafka_new
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    environment:
+      KAFKA_ENABLE_KRAFT: yes
+      KAFKA_CFG_PROCESS_ROLES: broker,controller
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CFG_NODE_ID: 1
+      KAFKA_KRAFT_CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: true
+      KAFKA_CFG_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_CFG_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_CFG_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      ALLOW_PLAINTEXT_LISTENER: yes
+    volumes:
+      - kafka_data:/bitnami/kafka
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 6
+      start_period: 40s
+    networks:
+      - mainnet
+
+  kafka-connect:
+    image: quay.io/debezium/connect:2.7
+    container_name: kafka-connect_new
+    ports:
+      - "8083:8083"
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: 1
+      CONFIG_STORAGE_TOPIC: connect_configs
+      OFFSET_STORAGE_TOPIC: connect_offsets
+      STATUS_STORAGE_TOPIC: connect_statuses
+      CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      STATUS_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+      CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+    volumes:
+      - ./connectors:/etc/kafka-connect/connectors
+    depends_on:
+      kafka:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8083/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    networks:
+      - mainnet
+
+  # --------------------
+  # Consumer Service (MongoDB CDC to Weaviate)
+  # --------------------
+  consumer:
+    build:
+      context: ./consumer
+      dockerfile: dockerfile
+    container_name: research_consumer
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+      - KAFKA_BROKER=kafka:9092
+      - KAFKA_TOPICS=research_db.research_db.rss_news
+      - KAFKA_GROUP_ID=research-consumer-group
+      - WEAVIATE_HOST=weaviate
+      - WEAVIATE_HTTP_PORT=8080
+      - WEAVIATE_GRPC_PORT=50051
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_MODEL=nomic-embed-text
+      - RETRY_DELAY=1
+      - MAX_RETRIES=3
+    depends_on:
+      kafka:
+        condition: service_healthy
+      kafka-connect:
+        condition: service_healthy
+      weaviate:
+        condition: service_started
+      ollama:
+        condition: service_started
+    networks:
+      - mainnet
+    volumes:
+      - ./consumer:/app
+      - consumer_logs:/app/logs
 
 volumes:
   mongo_data:
   ollama_data:
+  kafka_data:
+  consumer_logs:
 
 networks:
   mainnet:

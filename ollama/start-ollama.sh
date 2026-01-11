@@ -16,7 +16,7 @@ for MODEL in "${MODELS[@]}"; do
     echo "Pulling model: $MODEL"
     ollama pull $MODEL
   else
-    echo "$MODEL already exists."
+    echo "$MODEL already exists. Skipping pull."
   fi
 done
 

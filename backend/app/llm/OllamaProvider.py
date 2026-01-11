@@ -1,24 +1,63 @@
+import json
 from langchain_community.chat_models import ChatOllama
+from langchain.schema import SystemMessage, HumanMessage
 from app.llm.LLMProvider import LLMProvider
 
-class OllamaProvider(LLMProvider):
 
-    def __init__(self):
-        self._llm = None  # Holds the singleton instance
-    
-    def create_llm(self, model: str = "llama3:latest", **kwargs):
-        """Create a new ChatOllama instance."""
+class OllamaProvider(LLMProvider):
+    """
+    Ollama LLM provider using LangChain's ChatOllama wrapper.
+    Implements a consistent async generate() method for the project.
+    """
+
+    def __init__(self, model: str = "llama3:latest", temperature: float = 0.3):
+        self.model = model
+        self.temperature = temperature
+        self._llm = None  # Singleton LLM instance
+
+    # ------------------------------------
+    # CREATE INSTANCE
+    # ------------------------------------
+    def create_llm(self):
         return ChatOllama(
-            model=model,
+            model=self.model,
             base_url="http://localhost:11434",
-            **kwargs
+            temperature=self.temperature,
+            # Balanced settings for quality and speed
+            num_predict=300,  # Allow longer responses
+            num_ctx=4096,     # Sufficient context window for news articles
+            top_p=0.9,        # Good sampling
+            repeat_penalty=1.1
         )
 
+    # ------------------------------------
+    # GET SINGLETON
+    # ------------------------------------
     def get_llm(self):
-        """Return the singleton ChatOllama instance."""
         if self._llm is None:
-            self._llm = ChatOllama(
-                model="llama3:latest",
-                base_url="http://localhost:11434"
-            )
+            self._llm = self.create_llm()
         return self._llm
+
+    # ------------------------------------
+    # MAIN GENERATION METHOD
+    # Used by RSS summary & sentiment services
+    # ------------------------------------
+    async def generate(self, prompt: str):
+        """
+        Standardized async generate() method expected by services.
+        Returns the final LLM string output only.
+        """
+        llm = self.get_llm()
+
+        try:
+            response = await llm.agenerate(
+                messages=
+                    [HumanMessage(content=prompt)]
+                
+            )
+
+            # LangChain returns a list → extract text
+            return response.generations[0].text.strip()
+
+        except Exception as e:
+            return f"LLM Error: {str(e)}"

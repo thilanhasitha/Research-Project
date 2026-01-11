@@ -15,7 +15,7 @@
 # TEST_FEED = "https://economynext.com/feed/"
 
 # async def test_ollama_rss():
-#     print("🔹 Getting Ollama LLM instance...")
+#     print(" Getting Ollama LLM instance...")
 #     try:
 #         llm = LLMFactory.get_llm("ollama")
 #         print(" Ollama LLM instance obtained")
@@ -26,7 +26,7 @@
 #     rss_service = RSSService(llm)
 
 #     # Fetch articles
-#     print(f"🔹 Fetching RSS feed: {TEST_FEED}")
+#     print(f" Fetching RSS feed: {TEST_FEED}")
 #     try:
 #         articles = await rss_service.fetch_feed(TEST_FEED)
 #         print(f" Fetched {len(articles)} articles")
@@ -40,7 +40,7 @@
 
 #     # Analyze sentiment of first article
 #     sample_text = articles[0].summary
-#     print(f"🔹 Analyzing sentiment of first article: {sample_text[:60]}...")
+#     print(f" Analyzing sentiment of first article: {sample_text[:60]}...")
 
 #     try:
 #         sentiment = await rss_service.analyze_sentiment(sample_text)
@@ -86,7 +86,7 @@ class RSSServiceNoDB(RSSService):
 TEST_FEED = "https://economynext.com/feed/"
 
 async def test_ollama_rss():
-    print("🔹 Getting Ollama LLM instance...")
+    print(" Getting Ollama LLM instance...")
     try:
         llm = LLMFactory.get_llm("ollama")
         print(" Ollama LLM instance obtained")
