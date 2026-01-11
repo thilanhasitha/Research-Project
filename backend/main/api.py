@@ -1,136 +1,142 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
+import os
+import time
+import joblib
+import pandas as pd
+import numpy as np
+import matplotlib
+matplotlib.use("Agg")  # Essential for server-side rendering
+import matplotlib.pyplot as plt
+from fastapi import FastAPI, UploadFile, File
 from fastapi.staticfiles import StaticFiles
 
-import pandas as pd
-import joblib
-import os
-import uuid
-
-from src.db.db import db  # <--- Import from your db.py 
-
-from src.models.model_1.config import DATA_PATH,DATE_COL,TICKER_COL, PREV_CLOSE_COL, DAY_CLOSE_COL, CHANGE_PCT_COL, TURNOVER_COL
-
-from src.models.model_1.data_preprocessing import engineer_features
-from src.models.model_1.model import apply_model
-from src.models.model_1.visualization import plot_price_with_anomalies, plot_anomaly_counts
+# Import your custom logic and constants
+from src.models.model_1.pd_logic import engineer_features, get_explanations, TICKER_COL, DATE_COL
 
 app = FastAPI()
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-# Load model/scaler once
-MODEL_PATH = "src/models/model_1/pumpdump_local_model.joblib"
-SCALER_PATH = "src/models/model_1/pumpdump_local_scaler.joblib"
-model = joblib.load(MODEL_PATH)
-scaler = joblib.load(SCALER_PATH)
+# --- 1. DIRECTORY & PATH CONFIGURATION ---
+API_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.dirname(API_DIR) 
 
-# Static file serving for charts
-CHART_DIR = os.path.abspath("charts")
-os.makedirs(CHART_DIR, exist_ok=True)
-app.mount("/charts", StaticFiles(directory=CHART_DIR), name="charts")
+STATIC_DIR = os.path.join(BASE_DIR, "static")
+REPORTS_DIR = os.path.join(STATIC_DIR, "reports")
+os.makedirs(REPORTS_DIR, exist_ok=True)
 
-@app.post("/predict")
-async def predict(file: UploadFile = File(...)):
-    # Load CSV (comma-separated)
-    df = pd.read_csv(file.file)
+# Mount static folder so images are accessible via URL
+app.mount("/plots", StaticFiles(directory=REPORTS_DIR), name="plots")
 
-    # Clean numeric columns
-    numeric_cols = ["Prev Close", "Day Close", "Change (%)", "Change (Rs.)", "Turnover"]
-    for col in numeric_cols:
-        if col in df.columns:
-            df[col] = (
-                df[col]
-                .astype(str)
-                .str.replace(",", "")
-                .str.strip()
-            )
-            df[col] = pd.to_numeric(df[col], errors="coerce")
+# Build absolute paths to the models
+MODEL_PATH = os.path.join(API_DIR, "..", "src", "models", "model_1", "isolation_forest_model.joblib")
+SCALER_PATH = os.path.join(API_DIR, "..", "src", "models", "model_1", "robust_scaler.joblib")
 
-    df = df.fillna(0)
+# Load AI assets
+if not os.path.exists(MODEL_PATH):
+    raise FileNotFoundError(f"Model file not found at {MODEL_PATH}. Run main.py first.")
 
-    print("DEBUG Columns:", df.columns.tolist())
+MODEL = joblib.load(MODEL_PATH)
+SCALER = joblib.load(SCALER_PATH)
 
-    # PROCESS FEATURES
-    df_feat, X_scaled, feature_cols, _ = engineer_features(df)
-    X_scaled = scaler.transform(df_feat[feature_cols].values)
-    result_df = apply_model(df_feat, model, X_scaled)
+# --- 2. HELPER FUNCTIONS ---
 
-    # ----- DETECT ANOMALIES -----
-    anomalies = result_df[result_df["anomaly_label"] == -1]
-    anomaly_records = anomalies.to_dict(orient="records")
+def generate_master_plot(df_feat, filename):
+    """Generates a fraud map with vertical labels for the API response."""
+    anomalies = df_feat[df_feat['anomaly_label'] == -1].copy()
+    if anomalies.empty:
+        return False
 
-    # create task ID
-    task_id = str(uuid.uuid4())
+    plt.figure(figsize=(16, 9), dpi=150)
+    plt.style.use('bmh')
 
-    # Save charts
-    price_chart = os.path.join(CHART_DIR, f"{task_id}_price_anomalies.png")
-    count_chart = os.path.join(CHART_DIR, f"{task_id}_anomaly_counts.png")
-    plot_price_with_anomalies(result_df)
-    os.rename("pumpdump_local_price_anomalies.png", price_chart)
-    plot_anomaly_counts(result_df)
-    os.rename("pumpdump_local_anomaly_counts.png", count_chart)
+    scatter = plt.scatter(
+        pd.to_datetime(anomalies[DATE_COL]), 
+        anomalies['gap_return'], 
+        c=anomalies['anomaly_score'], 
+        cmap='YlOrRd', 
+        s=180, 
+        edgecolors='black', 
+        alpha=0.9,
+        zorder=3
+    )
+    
+    for i in range(len(anomalies)):
+        plt.text(
+            pd.to_datetime(anomalies[DATE_COL]).iloc[i], 
+            anomalies['gap_return'].iloc[i] + 0.015, 
+            str(anomalies[TICKER_COL].iloc[i]), 
+            fontsize=10, fontweight='bold', ha='center', va='bottom', 
+            rotation=90, zorder=4,
+            bbox=dict(facecolor='white', alpha=0.7, edgecolor='none', pad=1)
+        )
 
-    # ----- SAVE PREDICTION SUMMARY -----
-    prediction_doc = {
-        "task_id": task_id,
-        "results": result_df.to_dict(orient="records"),
-        "price_chart": f"/charts/{task_id}_price_anomalies.png",
-        "count_chart": f"/charts/{task_id}_anomaly_counts.png",
-        "anomaly_count": len(anomaly_records)
-    }
-    await db.predictions.insert_one(prediction_doc)
+    plt.colorbar(scatter, label='AI Confidence Score')
+    plt.title("Detected Pump & Dump Events", fontsize=18)
+    plt.xlabel("Date")
+    plt.ylabel("Price Jump %")
+    plt.tight_layout()
+    
+    save_path = os.path.join(REPORTS_DIR, filename)
+    plt.savefig(save_path)
+    plt.close()
+    return True
 
-    # ----- SAVE ANOMALIES ONLY -----
-    await db.anomalies.insert_one({
-        "task_id": task_id,
-        "count": len(anomaly_records),
-        "records": anomaly_records
-    })
+# --- 3. API ENDPOINTS ---
 
-    # ---- GRAPH DATA PREPARATION ----
+@app.post("/detect")
+async def detect_fraud(file: UploadFile = File(...)):
+    # Load Data
+    raw_df = pd.read_csv(file.file)
+    total_rows = len(raw_df)
+    total_companies_scanned = raw_df[TICKER_COL].nunique() if TICKER_COL in raw_df.columns else 0
+    
+    # Feature Engineering
+    df_feat, feature_cols = engineer_features(raw_df)
+    
+    # Prediction
+    X_input = df_feat[feature_cols]
+    X_scaled = SCALER.transform(X_input) 
+    scores = -MODEL.score_samples(X_scaled)
+    df_feat["anomaly_score"] = scores
+    
+    # Strict Filter
+    is_anomaly = (scores > 0.65) & \
+                 (df_feat['gap_return'] > 0.15) & \
+                 (df_feat['vol_surge_ratio'] > 5.0)
+    
+    df_feat["anomaly_label"] = 1
+    df_feat.loc[is_anomaly, "anomaly_label"] = -1
+    
+    total_found = int(np.sum(is_anomaly))
+    unique_tickers = df_feat.loc[is_anomaly, TICKER_COL].nunique() if total_found > 0 else 0
 
-    # Price chart raw data
-    price_chart_data = result_df[[
-        DATE_COL, 
-        DAY_CLOSE_COL, 
-        "anomaly_label", 
-        "anomaly_score"
-    ]].to_dict(orient="records")
+    # Generate Visualization
+    report_filename = f"fraud_report_{int(time.time())}.png"
+    image_created = generate_master_plot(df_feat, report_filename)
+    
+    # Formatting Results
+    results = []
+    if total_found > 0:
+        fraud_indices = np.where(is_anomaly)[0]
+        reasons = get_explanations(MODEL, X_scaled[fraud_indices], feature_cols)
+        fraud_df = df_feat[is_anomaly].copy()
+        
+        for i, (_, row) in enumerate(fraud_df.iterrows()):
+            results.append({
+                "ticker": row[TICKER_COL],
+                "date": str(row[DATE_COL]),
+                "pump_intensity": f"{row['gap_return']*100:.1f}%",
+                "anomaly_score": round(float(row["anomaly_score"]), 4),
+                "volume_surge": f"{row['vol_surge_ratio']:.1f}x",
+                "reason": reasons[i]
+            })
 
-    # Anomaly count chart data
-    count_chart_data = {
-        "normal_count": int((result_df["anomaly_label"] == 1).sum()),
-        "anomaly_count": int((result_df["anomaly_label"] == -1).sum())
-    }
-
-    # ----- STORE GRAPH DATA -----
-    await db.graph_price_data.insert_one({
-        "task_id": task_id,
-        "data": price_chart_data
-    })
-
-    await db.graph_count_data.insert_one({
-        "task_id": task_id,
-        "data": count_chart_data
-    })
-
-
-    # API response to frontend
     return {
-        "task_id": task_id,
-        "columns": list(result_df.columns),
-        "total_rows": len(result_df),
-        "anomaly_count": len(anomaly_records),
-        "anomalies": anomaly_records,
-        "chart_urls": [
-            prediction_doc["price_chart"],
-            prediction_doc["count_chart"]
-        ]
+        "status": "Success",
+        "scan_summary": {
+            "total_rows_processed": total_rows,
+            "total_companies_scanned": total_companies_scanned,
+            "frauds_detected": total_found,
+            "unique_companies_flagged": unique_tickers
+        },
+        "detections": results,
+        "report_url": f"/plots/{report_filename}" if image_created else None
     }
-
-# Example endpoint to get a list of previous results (for making UI history page)
-@app.get("/history")
-async def history():
-    cursor = db.predictions.find({}, {"_id": 0, "task_id": 1, "chart_urls": 1})
-    tasks = await cursor.to_list(length=100)
-    return tasks
