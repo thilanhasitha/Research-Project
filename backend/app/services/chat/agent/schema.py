@@ -10,10 +10,13 @@ from app.models.models import MessageModel
 # Schema for tool input
 class MongoFilterInput(BaseModel):
     filter_dict: Dict[str, Any] = Field(..., description="The MongoDB filter in dictionary format")
-    limit: int = Field(100, description="Maximum number of items to return (default 100)")
+    limit: int = Field(20, description="Maximum number of items to return (default 20)")
     
 class MongoIDInput(BaseModel):
-    item_id: str = Field(..., description="The item_id to get item details")
+    item_id: str = Field(..., description="The MongoDB ObjectId of the news article to retrieve")
+
+class LatestNewsInput(BaseModel):
+    limit: int = Field(10, description="Maximum number of latest articles to return (default 10)")
     
 class SemanticSearchInput(BaseModel):
     collection_name: str = Field(..., description="Weaviate collection name to search")
