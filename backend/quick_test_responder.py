@@ -31,11 +31,11 @@ async def quick_test():
     
     try:
         result1 = await shopping_assistant.ainvoke(state1)
-        print(f"✓ Intent: {result1.get('current_intent')}")
-        print(f"✓ Used tools: {result1.get('has_tool_calls', False)}")
-        print(f"✓ Response: {result1.get('output', '')[:100]}...")
+        print(f" Intent: {result1.get('current_intent')}")
+        print(f" Used tools: {result1.get('has_tool_calls', False)}")
+        print(f" Response: {result1.get('output', '')[:100]}...")
     except Exception as e:
-        print(f"✗ Error: {e}")
+        print(f" Error: {e}")
     
     # Test 2: News query (SHOULD use tools)
     print("\n[Test 2] Testing news search...")
@@ -47,14 +47,14 @@ async def quick_test():
     
     try:
         result2 = await shopping_assistant.ainvoke(state2)
-        print(f"✓ Intent: {result2.get('current_intent')}")
-        print(f"✓ Used tools: {result2.get('has_tool_calls', False)}")
+        print(f" Intent: {result2.get('current_intent')}")
+        print(f" Used tools: {result2.get('has_tool_calls', False)}")
         if result2.get('tool_results'):
             tools_used = [t.get('name') for t in result2.get('tool_results', []) if isinstance(t, dict) and 'name' in t]
-            print(f"✓ Tools called: {tools_used}")
-        print(f"✓ Response: {result2.get('output', '')[:100]}...")
+            print(f" Tools called: {tools_used}")
+        print(f" Response: {result2.get('output', '')[:100]}...")
     except Exception as e:
-        print(f"✗ Error: {e}")
+        print(f" Error: {e}")
     
     print("\n" + "="*60)
     print("Quick test complete!")
@@ -62,7 +62,7 @@ async def quick_test():
 
 
 if __name__ == "__main__":
-    print("\n⚠️  Make sure Docker services are running: docker compose up -d")
+    print("\n  Make sure Docker services are running: docker compose up -d")
     print("Press Enter to continue...")
     input()
     

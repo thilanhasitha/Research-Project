@@ -1,5 +1,5 @@
-import React from 'react';
-import { Bot, User } from 'lucide-react';
+import React, { useState } from 'react';
+import { Bot, User, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
 
 const formatTimestamp = (isoString) => {
   if (!isoString) return '';
@@ -18,8 +18,11 @@ const ChatMessage = ({
   message, 
   isUser, 
   timestamp, 
-  isTyping = false
+  isTyping = false,
+  sources = null
 }) => {
+  const [showSources, setShowSources] = useState(false);
+
   return (
     <div className={`flex gap-3 mb-4 ${isUser ? 'justify-end' : 'justify-start'}`}>
       
@@ -47,9 +50,56 @@ const ChatMessage = ({
               </div>
             </div>
           ) : (
-            <p className="text-sm leading-relaxed whitespace-pre-wrap">{message}</p>
+            <>
+              <p className="text-sm leading-relaxed whitespace-pre-wrap">{message}</p>
+              
+              {/* Sources toggle button */}
+              {!isUser && sources && sources.length > 0 && (
+                <button
+                  onClick={() => setShowSources(!showSources)}
+                  className="mt-2 flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 transition-colors"
+                >
+                  {showSources ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                  {showSources ? 'Hide' : 'Show'} {sources.length} source{sources.length !== 1 ? 's' : ''}
+                </button>
+              )}
+            </>
           )}
         </div>
+
+        {/* Sources display */}
+        {!isUser && showSources && sources && sources.length > 0 && (
+          <div className="mt-2 space-y-2">
+            {sources.map((source, idx) => (
+              <div key={idx} className="bg-white border border-gray-200 rounded-lg p-2 text-xs">
+                <div className="font-medium text-gray-900 mb-1">{source.title}</div>
+                {source.summary && (
+                  <p className="text-gray-600 text-xs mb-1 line-clamp-2">{source.summary}</p>
+                )}
+                <div className="flex items-center justify-between mt-1">
+                  <span className={`text-xs px-2 py-0.5 rounded ${
+                    source.sentiment === 'positive' ? 'bg-green-100 text-green-700' :
+                    source.sentiment === 'negative' ? 'bg-red-100 text-red-700' :
+                    'bg-gray-100 text-gray-700'
+                  }`}>
+                    {source.sentiment}
+                  </span>
+                  {source.link && (
+                    <a
+                      href={source.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-purple-600 hover:text-purple-800"
+                    >
+                      <span>Read more</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Timestamp */}
         <p className={`text-xs text-gray-500 mt-1 ${isUser ? 'text-right' : 'text-left'}`}>
