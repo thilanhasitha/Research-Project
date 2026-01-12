@@ -154,24 +154,11 @@ const ChatPanel = ({
         <div className="flex-1 overflow-y-auto p-4" style={{ scrollbarWidth: 'thin' }}>
           {messages.map((msg) => (
             <ChatMessage
-              key={msg.id}
+              key={msg.id || msg.timestamp}
               message={msg.message}
               isUser={msg.isUser}
               timestamp={msg.timestamp}
-              products={msg.products}
-              variantData={msg.variantData}
-              onAddToCart={onAddToCart}
-              onViewProduct={onViewProduct}
-              onVariantConfirm={(selection) => {
-                if (msg.variantData) {
-                  onVariantConfirm(
-                    selection,
-                    msg.variantData.item_id,
-                    msg.variantData.item_name
-                  );
-                }
-              }}
-              onVariantCancel={onVariantCancel}
+              sources={msg.sources}
             />
           ))}
 

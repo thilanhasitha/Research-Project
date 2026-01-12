@@ -30,48 +30,68 @@ async def sync_mongodb_to_weaviate():
         
         # Get all economynext articles from MongoDB
         print(" Fetching articles from MongoDB...")
-        articles = await mongo_repo.get_latest_news(limit=100)  # Get up to 100 latest
+        articles = await mongo_repo.get_latest_news(limit=500)  # Get more articles
         
-        print(f"   Found {len(articles)} articles in MongoDB\n")
+        print(f"   Found {len(articles)} articles in MongoDB")
+        
+        if articles:
+            first_date = articles[0].get("published", "Unknown")
+            last_date = articles[-1].get("published", "Unknown")
+            print(f"   Date range: {last_date} to {first_date}\n")
         
         if not articles:
             print(" No articles found in MongoDB!")
             return
         
-        # Sync each article to Weaviate
-        print(" Syncing to Weaviate...")
+        # Clear existing Weaviate data for fresh sync
+        print(" Clearing existing Weaviate data...")
+        try:
+            weaviate_client.collection.data.delete_many(
+                where={
+                    "path": ["mongoId"],
+                    "operator": "IsNotNull"
+                }
+            )
+            print("   Cleared existing data\n")
+        except Exception as e:
+            print(f"   Note: Could not clear data (might be empty): {e}\n")
+        
+        # Batch sync to Weaviate for better performance
+        print(" Syncing to Weaviate using batch insert...")
         synced = 0
         skipped = 0
         errors = 0
         
-        for article in articles:
-            try:
-                # Check if already exists in Weaviate (by mongoId)
-                mongo_id = article.get("_id")
-                
-                # Prepare data for Weaviate
-                data = {
-                    "mongoId": mongo_id,
-                    "title": article.get("title", ""),
-                    "content": article.get("content", ""),
-                    "clean_text": article.get("clean_text", ""),
-                    "summary": article.get("summary", ""),
-                    "link": article.get("link", ""),
-                    "published": article.get("published", datetime.utcnow()),
-                    "sentiment": article.get("sentiment", "neutral"),
-                    "score": article.get("score", 0.0)
-                }
-                
-                # Add to Weaviate
-                weaviate_client.collection.data.insert(properties=data)
-                synced += 1
-                
-                if synced % 5 == 0:
-                    print(f"   Synced {synced} articles...")
+        # Use batch insert for much faster sync
+        with weaviate_client.collection.batch.dynamic() as batch:
+            for article in articles:
+                try:
+                    mongo_id = str(article.get("_id"))
                     
-            except Exception as e:
-                errors += 1
-                print(f"     Error syncing article '{article.get('title', 'unknown')}': {e}")
+                    # Prepare data for Weaviate
+                    data = {
+                        "mongoId": mongo_id,
+                        "title": article.get("title", ""),
+                        "content": article.get("content", ""),
+                        "clean_text": article.get("clean_text", ""),
+                        "summary": article.get("summary", ""),
+                        "link": article.get("link", ""),
+                        "published": article.get("published", datetime.utcnow()),
+                        "sentiment": article.get("sentiment", "neutral"),
+                        "score": article.get("score", 0.0)
+                    }
+                    
+                    # Add to batch
+                    batch.add_object(properties=data)
+                    synced += 1
+                    
+                    if synced % 50 == 0:
+                        print(f"   Synced {synced} articles...")
+                        
+                except Exception as e:
+                    errors += 1
+                    if errors <= 5:  # Only show first 5 errors
+                        print(f"     Error syncing article '{article.get('title', 'unknown')[:50]}': {e}")
         
         print(f"\n Sync complete!")
         print(f"   Synced: {synced}")

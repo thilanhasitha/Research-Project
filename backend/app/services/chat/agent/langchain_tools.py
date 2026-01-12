@@ -2,6 +2,7 @@ from langchain_core.tools import StructuredTool
 from app.Database.repositories.rss_repository import RSSRepository
 # from app.Database.repositories.policy import PolicyRepository
 from app.services.chat.agent.schema import *
+from app.services.chat.agent.schema import LatestNewsInput
 from typing import Optional, List, Dict, Any
 import logging
 
@@ -23,7 +24,12 @@ def build_mongo_tools(mongo_service: Optional[RSSRepository] = None) -> List[Str
     
     async def _get_latest_sri_lankan_news(limit: int = 10):
         """Get the latest Sri Lankan stock market and economic news from economynext."""
-        return await mongo_service.get_latest_news(limit)
+        logger.info(f"[TOOL:get_latest_news] Called with limit={limit}")
+        result = await mongo_service.get_latest_news(limit)
+        logger.info(f"[TOOL:get_latest_news] Returned {len(result) if isinstance(result, list) else 0} articles")
+        if result and len(result) > 0:
+            logger.info(f"[TOOL:get_latest_news] First article: {result[0].get('title', 'No title')}")
+        return result
 
     return [
         StructuredTool.from_function(
@@ -39,7 +45,7 @@ def build_mongo_tools(mongo_service: Optional[RSSRepository] = None) -> List[Str
             name="get_latest_news",
             description="""Get the latest Sri Lankan stock market and economic news articles from economynext.
             Use this when user asks for recent news, latest updates, or what's happening in Sri Lankan markets.""",
-            args_schema=MongoIDInput,
+            args_schema=LatestNewsInput,
         ),
         StructuredTool.from_function(
             coroutine=_get_news_by_id,

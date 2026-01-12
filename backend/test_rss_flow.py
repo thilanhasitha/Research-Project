@@ -18,7 +18,7 @@ async def test_complete_flow():
     print("="*60)
     
     # Step 1: Test MongoDB connection
-    print("\n1️  Testing MongoDB Connection...")
+    print("\n1  Testing MongoDB Connection...")
     try:
         mongo = MongoClient()
         await mongo.connect()
@@ -33,7 +33,7 @@ async def test_complete_flow():
         return
     
     # Step 2: Test Ollama LLM
-    print("\n2️  Testing Ollama LLM...")
+    print("\n2  Testing Ollama LLM...")
     try:
         llm = LLMFactory.get_llm("ollama")
         provider = LLMFactory.get_provider("ollama")
@@ -50,7 +50,7 @@ async def test_complete_flow():
         return
     
     # Step 3: Test RSS fetching
-    print("\n3️  Testing RSS Feed Fetching...")
+    print("\n3  Testing RSS Feed Fetching...")
     try:
         service = RSSService(llm)
         test_feed = "https://economynext.com/feed/"
@@ -76,7 +76,7 @@ async def test_complete_flow():
         return
     
     # Step 4: Test Summary Generation
-    print("\n4️  Testing Summary Generation...")
+    print("\n4  Testing Summary Generation...")
     try:
         sample_text = first.clean_text[:500]  # Use first 500 chars
         print(f"   Input text: {sample_text[:100]}...")
@@ -90,7 +90,7 @@ async def test_complete_flow():
         return
     
     # Step 5: Test Sentiment Analysis
-    print("\n5️  Testing Sentiment Analysis...")
+    print("\n5  Testing Sentiment Analysis...")
     try:
         sentiment_data = await service.analyze_sentiment(sample_text)
         print(f" Sentiment analysis completed!")
@@ -103,7 +103,7 @@ async def test_complete_flow():
         return
     
     # Step 6: Test Complete Flow (Fetch and Store)
-    print("\n6️  Testing Complete Flow (Limited to 2 articles)...")
+    print("\n6  Testing Complete Flow (Limited to 2 articles)...")
     try:
         # Temporarily limit articles for testing
         original_fetch = service.fetch_feed
