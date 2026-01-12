@@ -17,6 +17,11 @@ def should_route_by_intent(state: AgentState) -> str:
         last_intent = state.last_intent
         logger.info(f"[MASTER_ROUTER] Intent is 'unclear'. Routing to last_intent: {last_intent}")
         return last_intent or "general"
+    
+    # News-related intents should go to general_responder which has access to news tools
+    if intent in ["news_search", "market_analysis", "data_lookup"]:
+        logger.info(f"[MASTER_ROUTER] News-related intent: {intent}. Routing to general_responder for tool execution.")
+        return "general"
         
     if intent == "product_search":
         return "product_search"
