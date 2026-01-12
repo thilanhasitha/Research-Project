@@ -30,6 +30,44 @@ class NewsRAGService:
             self.weaviate_client.connect()
             logger.info("NewsRAGService: Connected to Weaviate")
     
+    def _detect_time_filter(self, question: str) -> Optional[datetime]:
+        """Detect time-related keywords in question and return appropriate date filter."""
+        question_lower = question.lower()
+        
+        # Today's news - return start of today
+        if any(word in question_lower for word in ['today', "today's", 'todays']):
+            # Return start of today (00:00:00)
+            today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+            logger.info(f"Detected 'today' keyword - filtering from {today}")
+            return today
+        
+        # Latest/recent news - return last 3 days
+        if any(word in question_lower for word in ['latest', 'recent', 'new', 'current']):
+            date_filter = datetime.utcnow() - timedelta(days=3)
+            logger.info(f"Detected 'latest/recent' keyword - filtering from {date_filter}")
+            return date_filter
+        
+        # Yesterday's news
+        if any(word in question_lower for word in ['yesterday', 'yersterday']):
+            yesterday = (datetime.utcnow() - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+            logger.info(f"Detected 'yesterday' keyword - filtering from {yesterday}")
+            return yesterday
+        
+        # This week's news
+        if any(word in question_lower for word in ['this week', 'week']):
+            date_filter = datetime.utcnow() - timedelta(days=7)
+            logger.info(f"Detected 'week' keyword - filtering from {date_filter}")
+            return date_filter
+        
+        # This month's news
+        if any(word in question_lower for word in ['this month', 'month']):
+            date_filter = datetime.utcnow() - timedelta(days=30)
+            logger.info(f"Detected 'month' keyword - filtering from {date_filter}")
+            return date_filter
+        
+        # No time filter detected
+        return None
+    
     async def search_news_by_text(
         self,
         query: str,
@@ -105,10 +143,19 @@ class NewsRAGService:
                 logger.info(f"Found {len(results)} news articles in Weaviate")
                 return results
             
-            # For speed, return empty if Weaviate has no results
-            # Only fallback to MongoDB if explicitly needed
-            logger.warning("No results from Weaviate")
-            return []
+            # Fallback to MongoDB if Weaviate has no results
+            logger.warning("No results from Weaviate, falling back to MongoDB")
+            try:
+                mongo_results = await self._search_mongodb(query, limit, sentiment_filter, date_from)
+                if mongo_results:
+                    logger.info(f"MongoDB fallback successful: {len(mongo_results)} articles")
+                    return mongo_results
+                else:
+                    logger.warning("MongoDB also returned no results")
+                    return []
+            except Exception as mongo_err:
+                logger.error(f"MongoDB fallback failed: {mongo_err}", exc_info=True)
+                return []
             
         except Exception as e:
             logger.error(f"Error searching Weaviate, falling back to MongoDB: {e}", exc_info=True)
@@ -239,15 +286,57 @@ class NewsRAGService:
         try:
             logger.info(f"Answering question: '{question}'")
             
-            # Step 1: Retrieve relevant news articles
+            # Detect time-based filters from question
+            date_filter = self._detect_time_filter(question)
+            original_filter = date_filter
+            
+            # Step 1: Retrieve relevant news articles with progressive fallback
             news_articles = await self.search_news_by_text(
                 query=question,
-                limit=context_limit
+                limit=context_limit,
+                date_from=date_filter
             )
+            
+            # Fallback mechanism: If no results, progressively widen the date range
+            date_range_used = "today" if date_filter and (datetime.utcnow() - date_filter).days == 0 else None
+            
+            if not news_articles and date_filter:
+                logger.warning(f"No articles found with original date filter. Trying fallback...")
+                
+                # Fallback 1: Try last 7 days
+                fallback_filter = datetime.utcnow() - timedelta(days=7)
+                logger.info(f"Fallback: Searching last 7 days...")
+                news_articles = await self.search_news_by_text(
+                    query=question,
+                    limit=context_limit,
+                    date_from=fallback_filter
+                )
+                date_range_used = "the past 7 days"
+                
+                # Fallback 2: Try last 30 days
+                if not news_articles:
+                    fallback_filter = datetime.utcnow() - timedelta(days=30)
+                    logger.info(f"Fallback: Searching last 30 days...")
+                    news_articles = await self.search_news_by_text(
+                        query=question,
+                        limit=context_limit,
+                        date_from=fallback_filter
+                    )
+                    date_range_used = "the past 30 days"
+                
+                # Fallback 3: Try all time
+                if not news_articles:
+                    logger.info(f"Fallback: Searching all articles (no date filter)...")
+                    news_articles = await self.search_news_by_text(
+                        query=question,
+                        limit=context_limit,
+                        date_from=None
+                    )
+                    date_range_used = "available news archives"
             
             if not news_articles:
                 return {
-                    "answer": "I couldn't find any relevant news articles to answer your question. Please try rephrasing or asking about a different topic.",
+                    "answer": "I couldn't find any relevant news articles to answer your question. This could mean there are no articles in the database yet. Please try asking about a different topic or check back later.",
                     "sources": [],
                     "context_used": 0
                 }
@@ -271,6 +360,12 @@ class NewsRAGService:
             
             context = "\n".join(context_parts)
             
+            # Add note about date range if fallback was used
+            date_note = ""
+            if date_range_used and original_filter:
+                if date_range_used != "today":
+                    date_note = f"\n\nNOTE: The user asked about recent/today's news, but no articles were found for today. These articles are from {date_range_used}."
+            
             # Step 3: Generate answer using LLM with strict prompt
             prompt = f"""You are a news assistant. Answer the user's question using ONLY the information from the news articles provided below. 
 
@@ -281,6 +376,7 @@ STRICT RULES:
 - Do NOT mention Bitcoin, cryptocurrency, or any other topics not present in the articles
 - Be concise and factual
 - Cite article numbers when referencing information (e.g., "According to Article 1...")
+{date_note}
 
 NEWS ARTICLES:
 {context}
@@ -296,7 +392,8 @@ ANSWER (based only on the articles above):"""
             response = {
                 "answer": answer,
                 "context_used": len(news_articles),
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.utcnow().isoformat(),
+                "date_range_used": date_range_used  # Inform user about the actual date range
             }
             
             if include_sources:
@@ -312,7 +409,7 @@ ANSWER (based only on the articles above):"""
                     for article in news_articles
                 ]
             
-            logger.info("Successfully generated answer with RAG")
+            logger.info(f"Successfully generated answer with RAG (date range: {date_range_used})")
             return response
             
         except Exception as e:
