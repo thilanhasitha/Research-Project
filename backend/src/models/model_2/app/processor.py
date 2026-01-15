@@ -76,5 +76,5 @@ if __name__ == "__main__":
             
             save_path = os.path.join(output_dir, 'cse_standardized_features.csv')
             processed_df.to_csv(save_path, index=False)
-            print("✅ Phase 1: Data Architecture Complete")
+            print("Phase 1: Data Architecture Complete")
             print(f"File saved to: {save_path}")
