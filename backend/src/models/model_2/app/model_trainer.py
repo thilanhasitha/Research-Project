@@ -35,9 +35,9 @@ model = Sequential([
 model.compile(optimizer='adam', loss='mse')
 
 # 5. TRAIN
-print("🚀 Training starting...")
+print(" Training starting...")
 model.fit(X_train, X_train, epochs=50, batch_size=32)
 
 # 6. SAVE MODEL
 model.save('fraud_model.h5')
-print("✅ Model Saved successfully!")
+print(" Model Saved successfully!")

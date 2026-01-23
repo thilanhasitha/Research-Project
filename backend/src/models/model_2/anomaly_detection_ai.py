@@ -9,11 +9,11 @@ from sklearn.preprocessing import MinMaxScaler
 def run_ai_anomaly_detection(file_path):
     # 1. LOAD DATA
     if not os.path.exists(file_path):
-        print(f"❌ Error: File not found at {file_path}")
+        print(f" Error: File not found at {file_path}")
         return
         
     df = pd.read_csv(file_path)
-    print(f"✅ Data Loaded! Columns found: {list(df.columns)}")
+    print(f" Data Loaded! Columns found: {list(df.columns)}")
 
     # 2. SELECT FEATURES (Safety Check)
     # We will look for common column names used in CSE data
@@ -21,10 +21,10 @@ def run_ai_anomaly_detection(file_path):
     features = [f for f in possible_features if f in df.columns]
     
     if len(features) < 1:
-        print("❌ Error: None of the required features were found in the CSV!")
+        print(" Error: None of the required features were found in the CSV!")
         return
     
-    print(f"📊 Using features for AI: {features}")
+    print(f" Using features for AI: {features}")
 
     fraud_alerts = []
     unique_symbols = df['Symbol'].unique()[:30] 
@@ -60,14 +60,14 @@ def run_ai_anomaly_detection(file_path):
         
         anomalies = np.sum(loss > threshold)
         if anomalies > 0:
-            print(f"🚨 {symbol}: Found {anomalies} suspicious patterns.")
+            print(f" {symbol}: Found {anomalies} suspicious patterns.")
             fraud_alerts.append({'Symbol': symbol, 'Alerts': anomalies})
 
     # Save results
     alert_df = pd.DataFrame(fraud_alerts)
     save_path = file_path.replace('.csv', '_ai_alerts.csv')
     alert_df.to_csv(save_path, index=False)
-    print(f"🏁 Done! Alerts saved to: {save_path}")
+    print(f" Done! Alerts saved to: {save_path}")
 
 if __name__ == "__main__":
     # MANUALLY SET THE PATH TO YOUR ACTUAL FILE LOCATION

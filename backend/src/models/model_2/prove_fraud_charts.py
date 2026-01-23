@@ -12,7 +12,7 @@ def prove_fraud_with_labels(file_path, target_symbol):
     stock_data = df[df['Symbol'] == target_symbol].sort_values('Date').reset_index(drop=True)
     
     if len(stock_data) < 20:
-        print(f"❌ Not enough data for {target_symbol}")
+        print(f" Not enough data for {target_symbol}")
         return
 
     # 1. Prepare Features
