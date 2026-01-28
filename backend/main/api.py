@@ -4,39 +4,82 @@ import joblib
 import pandas as pd
 import numpy as np
 import matplotlib
-matplotlib.use("Agg")  # Essential for server-side rendering
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.staticfiles import StaticFiles
-
-# Import your custom logic and constants
+from tensorflow.keras.models import load_model
+from fastdtw import fastdtw
+from scipy.spatial.distance import euclidean
+from datetime import datetime
+import uvicorn
+from fastapi.middleware.cors import CORSMiddleware # Added CORS
+# Import Model 1 Logic
 from src.models.model_1.pd_logic import engineer_features, get_explanations, TICKER_COL, DATE_COL
 
-app = FastAPI()
+app = FastAPI(title="Unified CSE Forensic API")
 
-# --- 1. DIRECTORY & PATH CONFIGURATION ---
-API_DIR = os.path.dirname(os.path.abspath(__file__))
-BASE_DIR = os.path.dirname(API_DIR) 
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # For development; replace with ["http://localhost:5173"] later
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+# --- 1. DIRECTORY CONFIGURATION ---
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 REPORTS_DIR = os.path.join(STATIC_DIR, "reports")
 os.makedirs(REPORTS_DIR, exist_ok=True)
+REPORT2_DIR = os.path.join(STATIC_DIR, "report2")
+os.makedirs(REPORT2_DIR, exist_ok=True)
 
-# Mount static folder so images are accessible via URL
-app.mount("/plots", StaticFiles(directory=REPORTS_DIR), name="plots")
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-# Build absolute paths to the models
-MODEL_PATH = os.path.join(API_DIR, "..", "src", "models", "model_1", "isolation_forest_model.joblib")
-SCALER_PATH = os.path.join(API_DIR, "..", "src", "models", "model_1", "robust_scaler.joblib")
+# --- 2. LOAD ALL ASSETS ---
+# Model 1 Assets
+M1_PATH = os.path.join(BASE_DIR, "..", "src", "models", "model_1", "isolation_forest_model.joblib")
+S1_PATH = os.path.join(BASE_DIR, "..", "src", "models", "model_1", "robust_scaler.joblib")
 
-# Load AI assets
-if not os.path.exists(MODEL_PATH):
-    raise FileNotFoundError(f"Model file not found at {MODEL_PATH}. Run main.py first.")
 
-MODEL = joblib.load(MODEL_PATH)
-SCALER = joblib.load(SCALER_PATH)
+# Model 2 Assets
+M2_PATH = os.path.join(BASE_DIR, "..", "src", "models", "model_2", "app","assets","fraud_model_attention.h5")
+S2_PATH = os.path.join(BASE_DIR, "..", "src", "models", "model_2", "app","assets","scaler.joblib")
 
-# --- 2. HELPER FUNCTIONS ---
+MODEL_1 = joblib.load(M1_PATH)
+SCALER_1 = joblib.load(S1_PATH)
+MODEL_2 = load_model(M2_PATH, compile=False)
+SCALER_2 = joblib.load(S2_PATH)
+
+# --- 3. HELPER FUNCTIONS ---
+
+def get_detailed_forensic_analysis(row, dtw_dist, threshold):
+    evidence = []
+    f_type, f_level, confidence = None, "LOW", 0
+    
+    # Logic 1: Pump and Dump
+    if row['Vol_Spike'] > 2.0 and row['Intraday_Return'] > 0.03:
+        f_type, f_level, confidence = "CRITICAL: PUMP & DUMP", "CRITICAL", 95
+        evidence.append(f"Price surged {round(row['Intraday_Return']*100,2)}% on extreme volume spike.")
+    
+    # Logic 2: Wash Trading
+    elif row['Vol_Spike'] > 5.0 and abs(row['Intraday_Return']) < 0.0001:
+        f_type, f_level, confidence = "WASH TRADING", "HIGH", 85
+        evidence.append("Circular trading detected: High volume but zero price impact.")
+    
+    # Logic 3: Market Ramping
+    elif abs(row['Price_Impact']) > 10.0:
+        f_type = "MARKET RAMPING"
+        f_level = "HIGH"
+        evidence.append(f"Artificial price movement. Price Impact Score: {round(row['Price_Impact'], 2)}")
+        confidence = 80
+
+    elif dtw_dist > threshold:
+        f_type, f_level, confidence = "BOT SIGNATURE", "MEDIUM", 70
+        evidence.append(f"Non-human rhythm (DTW: {round(dtw_dist, 3)})")
+
+    return f_type, f_level, " | ".join(evidence), f"{confidence}%" if f_type else (None, None, None, None)
 
 def generate_master_plot(df_feat, filename):
     """Generates a fraud map with vertical labels for the API response."""
@@ -79,9 +122,9 @@ def generate_master_plot(df_feat, filename):
     plt.close()
     return True
 
-# --- 3. API ENDPOINTS ---
+# --- 4. ENDPOINTS ---
 
-@app.post("/detect")
+@app.post("/api/v1/detect/pump-dump")
 async def detect_fraud(file: UploadFile = File(...)):
     # Load Data
     raw_df = pd.read_csv(file.file)
@@ -93,8 +136,8 @@ async def detect_fraud(file: UploadFile = File(...)):
     
     # Prediction
     X_input = df_feat[feature_cols]
-    X_scaled = SCALER.transform(X_input) 
-    scores = -MODEL.score_samples(X_scaled)
+    X_scaled = SCALER_1.transform(X_input) 
+    scores = -MODEL_1.score_samples(X_scaled)
     df_feat["anomaly_score"] = scores
     
     # Strict Filter
@@ -116,7 +159,7 @@ async def detect_fraud(file: UploadFile = File(...)):
     results = []
     if total_found > 0:
         fraud_indices = np.where(is_anomaly)[0]
-        reasons = get_explanations(MODEL, X_scaled[fraud_indices], feature_cols)
+        reasons = get_explanations(MODEL_1, X_scaled[fraud_indices], feature_cols)
         fraud_df = df_feat[is_anomaly].copy()
         
         for i, (_, row) in enumerate(fraud_df.iterrows()):
@@ -138,5 +181,98 @@ async def detect_fraud(file: UploadFile = File(...)):
             "unique_companies_flagged": unique_tickers
         },
         "detections": results,
-        "report_url": f"/plots/{report_filename}" if image_created else None
+        "report_url": f"/static/reports/{report_filename}" if image_created else None
     }
+
+@app.post("/api/v1/detect/forensic-lstm")
+async def detect_m2(file: UploadFile = File(...)):
+    """Model 2: Attention-Augmented LSTM + DTW"""
+    df = pd.read_csv(file.file)
+    features = ['Intraday_Return', 'Vol_Spike', 'Price_Impact']
+    scaled_data = SCALER_2.transform(df[features])
+    
+    total_rows = len(df)
+    companies = df['Symbol'].nunique()
+
+    window_size = 5
+    sequences = [scaled_data[i : i + window_size] for i in range(len(scaled_data) - window_size + 1)]
+    X_reshaped = np.array(sequences)
+
+    # Inference (Model 2 returns [reconstruction, attention_weights])
+    predictions, attn_weights = MODEL_2.predict(X_reshaped)
+
+    # 3. DTW Scoring
+    dtw_distances = []
+    for i in range(len(X_reshaped)):
+            dist, _ = fastdtw(X_reshaped[i], predictions[i], dist=euclidean)
+            dtw_distances.append(dist)
+
+    strict_threshold = np.percentile(dtw_distances, 99.9)
+
+    # 4. Building the Report
+    aligned_df = df.iloc[window_size - 1 :].copy()
+    final_alerts = []
+    
+    for i in range(len(aligned_df)):
+        row_data = aligned_df.iloc[i].to_dict()
+        f_type, f_level, f_ev, f_conf = get_detailed_forensic_analysis(row_data, dtw_distances[i], strict_threshold)
+        
+        if f_type:
+            # Extract which day the Attention layer focused on (Max weight in the 5-day window)
+            focus_day_idx = np.argmax(attn_weights[i].mean(axis=0).mean(axis=0)) 
+            
+            row_data.update({
+                "fraud_type": f_type,
+                "risk_level": f_level,
+                "forensic_evidence": f_ev,
+                "attention_focus_day": int(focus_day_idx + 1),
+                "confidence_score": f_conf,
+                "dtw_score": round(dtw_distances[i], 4)
+            })
+            final_alerts.append(row_data)
+
+    # 5. GENERATE AND SAVE CHART FIGURE
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    chart_filename = f"fraud_chart_{timestamp}.png"
+    chart_path = os.path.join(REPORT2_DIR, chart_filename)
+
+    plt.figure(figsize=(12, 6))
+    plt.plot(dtw_distances, label='Anomaly Score (DTW)', color='#1f77b4', alpha=0.7)
+    plt.axhline(y=strict_threshold, color='red', linestyle='--', label='99.9% Fraud Threshold')
+        
+        # Highlight high-risk points
+    anomalies_idx = [i for i, d in enumerate(dtw_distances) if d > strict_threshold]
+    if anomalies_idx:
+            plt.scatter(anomalies_idx, [dtw_distances[i] for i in anomalies_idx], color='red', s=30, label='Alert Points')
+
+    plt.title(f"Forensic Analysis Report - {timestamp}")
+    plt.xlabel("Sequence Index")
+    plt.ylabel("Neural Reconstruction Error")
+    plt.legend()
+    plt.grid(True, alpha=0.2)
+        
+    plt.savefig(chart_path, bbox_inches='tight')
+    plt.close()
+
+        # 6. RETURN JSON WITH LINK TO IMAGE
+    report_df = pd.DataFrame(final_alerts)
+    if not report_df.empty:
+            report_df = report_df.sort_values('dtw_score', ascending=False)
+            
+            summary = {
+                "total_rows_scanned": total_rows,
+                "total_companies": companies,
+                "high_risk_alerts_found": len(report_df),
+                "fraud_breakdown": report_df['fraud_type'].value_counts().to_dict()
+            }
+
+            return {
+            "status": "Success",
+            "scan_summary": summary,
+            "alerts": final_alerts,
+            "visual_evidence_url": f"/static/report2/{chart_filename}"
+        }
+
+if __name__ == "__main__":
+  
+    uvicorn.run(app, host="0.0.0.0", port=8003)
