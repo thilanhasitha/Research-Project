@@ -61,3 +61,39 @@ def latest_news(limit: int = 20):
         }
     except Exception as e:
         return {"status": "error", "error": str(e)}
+
+
+# TEST OLLAMA CONNECTION
+# -----------------------------------------------------
+@router.get("/test-ollama")
+async def test_ollama():
+    """
+    Test endpoint to verify Ollama connectivity and summary generation.
+    """
+    try:
+        llm = LLMFactory.get_provider("ollama")
+        
+        test_text = """Sri Lanka's economy showed signs of recovery as the central bank 
+        maintained interest rates at current levels. Foreign reserves increased by $200 million 
+        last month, bringing the total to $3.5 billion. Tourism arrivals also increased by 15% 
+        compared to the previous quarter."""
+        
+        # Test summary generation
+        summary = await RSSService(llm).generate_summary(test_text)
+        
+        # Test sentiment analysis
+        sentiment = await RSSService(llm).analyze_sentiment(test_text)
+        
+        return {
+            "status": "success",
+            "message": "✓ Ollama connection working!",
+            "test_text_length": len(test_text),
+            "generated_summary": summary,
+            "sentiment_analysis": sentiment
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"✗ Ollama connection failed: {str(e)}",
+            "error": str(e)
+        }

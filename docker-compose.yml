@@ -49,15 +49,15 @@ services:
   # Ollama
   # --------------------
   ollama:
-    image: ollama/ollama:latest
+    build:
+      context: ./ollama
+      dockerfile: Dockerfile
     container_name: ollama_new
     ports:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
-      - ./ollama/start-ollama.sh:/start-ollama.sh
     restart: unless-stopped
-    entrypoint: ["/start-ollama.sh"]
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
     networks:
@@ -87,7 +87,9 @@ services:
       - mainnet
 
   mongo:
-    image: mongo:8.0
+    build:
+      context: ./mongo
+      dockerfile: Dockerfile
     container_name: research_mongo
     ports:
       - "27017:27017"
@@ -97,8 +99,7 @@ services:
       MONGO_INITDB_DATABASE: research_db
     volumes:
       - mongo_data:/data/db
-      - ./mongo/mongo-entrypoint.sh:/usr/local/bin/mongo-entrypoint.sh
-    entrypoint: ["/usr/local/bin/mongo-entrypoint.sh"]
+    entrypoint: ["/scripts/mongo-entrypoint.sh"]
     healthcheck:
       test: ["CMD-SHELL", "mongosh --quiet --eval 'db.runCommand({ ping: 1 })' || exit 1"]
       interval: 10s
