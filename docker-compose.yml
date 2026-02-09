@@ -21,7 +21,7 @@ services:
       - OLLAMA_TEMPERATURE=0.2
     depends_on:
       ollama:
-        condition: service_started
+        condition: service_healthy
     command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
     networks:
       - mainnet
@@ -60,6 +60,12 @@ services:
     restart: unless-stopped
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:11434/api/tags || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
     networks:
       - mainnet
 
@@ -82,7 +88,8 @@ services:
     volumes:
       - ./weaviate_data:/var/lib/weaviate
     depends_on:
-      - ollama
+      ollama:
+        condition: service_healthy
     networks:
       - mainnet
 
@@ -202,7 +209,7 @@ services:
         condition: service_healthy
       weaviate:
         condition: service_started
-      ollama:
+      ollama:healthy
         condition: service_started
     networks:
       - mainnet
