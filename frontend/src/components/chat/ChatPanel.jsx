@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { X, Bot, Send, Wifi, WifiOff, AlertCircle } from 'lucide-react';
+import { X, Bot, Send, Wifi, WifiOff, AlertCircle, Menu } from 'lucide-react';
 import ChatMessage from './ChatMessage';
 import QuickActions from './QuickActions';
 
@@ -14,6 +14,8 @@ const ChatPanel = ({
   onQuickAction,
   onAddToCart,
   onViewProduct,
+  onToggleHistory,
+  isHistoryOpen,
   connectionStatus = 'unknown',
   error = null,
   onRetry,
@@ -105,6 +107,22 @@ const ChatPanel = ({
         {/* Chat Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-t-2xl">
           <div className="flex items-center gap-3">
+            {/* Menu Icon for History */}
+            <button
+              onClick={onToggleHistory}
+              className={`
+                p-1.5 rounded-md transition-colors
+                ${isHistoryOpen 
+                  ? 'bg-white bg-opacity-30' 
+                  : 'hover:bg-white hover:bg-opacity-20'
+                }
+              `}
+              aria-label="Toggle chat history"
+              title="View chat history"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            
             <div className="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
               <Bot className="w-4 h-4" />
             </div>
