@@ -209,8 +209,8 @@ services:
         condition: service_healthy
       weaviate:
         condition: service_started
-      ollama:healthy
-        condition: service_started
+      ollama:
+        condition: service_healthy
     networks:
       - mainnet
     volumes:
