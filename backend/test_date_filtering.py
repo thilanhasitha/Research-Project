@@ -24,18 +24,18 @@ async def test_date_filtering():
     ]
     
     for query in test_queries:
-        print(f"\n📝 Query: '{query}'")
+        print(f"\n Query: '{query}'")
         print("-" * 70)
         
         # Detect what date filter would be applied
         date_filter = service._detect_time_filter(query)
         
         if date_filter:
-            print(f"✅ Date filter detected: Articles from {date_filter.strftime('%Y-%m-%d %H:%M:%S')} onwards")
+            print(f" Date filter detected: Articles from {date_filter.strftime('%Y-%m-%d %H:%M:%S')} onwards")
             days_ago = (datetime.utcnow() - date_filter).days
             print(f"   (Filtering last {days_ago} days)")
         else:
-            print("❌ No date filter - searching all articles")
+            print(" No date filter - searching all articles")
         
         # Search with the detected filter
         try:
@@ -53,12 +53,12 @@ async def test_date_filtering():
                         pub_date = pub_date.strftime('%Y-%m-%d %H:%M')
                     print(f"   {i}. [{pub_date}] {article['title'][:60]}...")
             else:
-                print("   ⚠️  No articles found")
+                print("     No articles found")
         except Exception as e:
-            print(f"   ❌ Error: {e}")
+            print(f"    Error: {e}")
     
     print("\n" + "="*70)
-    print("✅ TEST COMPLETE")
+    print(" TEST COMPLETE")
     print("="*70 + "\n")
     
     service.weaviate_client.close()
