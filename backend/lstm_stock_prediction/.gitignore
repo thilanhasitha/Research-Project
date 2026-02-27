@@ -1,0 +1,85 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb_checkpoints/
+
+# Data files
+*.csv
+*.xlsx
+*.xls
+*.json
+data/raw/*.csv
+data/raw/*.xlsx
+data/processed/*.csv
+!data/raw/README.md
+
+# Model files
+*.h5
+*.hdf5
+*.pkl
+*.pickle
+models/saved_models/*.h5
+models/checkpoints/*.h5
+
+# Logs
+logs/*.log
+logs/tensorboard/*
+
+# Results
+results/plots/*.png
+results/plots/*.jpg
+results/plots/*.pdf
+results/metrics/*.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# TensorFlow
+*.ckpt
+*.meta
+*.index
+
+# Python cache
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
