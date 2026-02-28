@@ -223,6 +223,28 @@ services:
       - ./consumer:/app
       - consumer_logs:/app/logs
 
+  # --------------------
+  # LSTM Stock Prediction Service
+  # --------------------
+  lstm-predictor:
+    build:
+      context: ./backend/lstm_stock_prediction
+      dockerfile: Dockerfile
+    container_name: LSTM_model
+    ports:
+      - "8002:8002"
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+      - TF_CPP_MIN_LOG_LEVEL=2
+    volumes:
+      - ./backend/lstm_stock_prediction/models:/app/models
+      - ./backend/lstm_stock_prediction/data:/app/data
+      - ./backend/lstm_stock_prediction/logs:/app/logs
+      - ./backend/lstm_stock_prediction/results:/app/results
+    networks:
+      - mainnet
+
 volumes:
   mongo_data:
   ollama_data:
