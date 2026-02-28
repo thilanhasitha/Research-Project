@@ -10,6 +10,7 @@ from app.routes.rss_routes import router as rss_router
 from app.routes.chat_routes import router as chat_router
 from app.routes.news_chat_routes import router as news_chat_router
 from app.routes.admin_routes import router as admin_router
+from app.routes.knowledge_routes import router as knowledge_router
 # from app.routes.rag_routes import router as rag_router
 from app.llm.client.ollama_client import OllamaClient
 from app.llm.LLMFactory import LLMFactory 
@@ -67,6 +68,7 @@ def read_root():
             "search": "/news-chat/search - Search news articles",
             "trending": "/news-chat/trending - Get trending news",
             "sentiment": "/news-chat/sentiment - Analyze sentiment",
+            "knowledge": "/api/knowledge/query - Query CSE Annual Report",
             "health": "/news-chat/health - Service health check"
         }
     }
@@ -87,6 +89,7 @@ app.include_router(rss_router)
 app.include_router(chat_router)
 app.include_router(news_chat_router)
 app.include_router(admin_router)
+app.include_router(knowledge_router)
 #app.include_router(rag_router)
 
 @app.on_event("startup")
