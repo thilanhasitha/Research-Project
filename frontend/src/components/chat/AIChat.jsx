@@ -3,6 +3,7 @@ import ChatFloatingButton from './ChatFloatingButton';
 import ChatPanel from './ChatPanel';
 import ChatHistory from './ChatHistory';
 import { askQuestion, checkHealth } from '../../../utils/newsRAGService';
+import { queryKnowledgeBase, getQuickActionQuestion } from '../../../utils/knowledgeBaseService';
 
 // Create a message object
 const createMessage = (text, isUser = false, sources = null, metadata = null) => ({
@@ -156,6 +157,59 @@ const AIChat = () => {
     }
   };
 
+  // Get knowledge base response (CSE Annual Report queries)
+  const getKnowledgeBaseResponse = async (userMessage) => {
+    setIsTyping(true);
+    setError(null);
+
+    try {
+      // Call the Knowledge Base API
+      const response = await queryKnowledgeBase(userMessage, {
+        userId: 'anonymous'
+      });
+
+      setIsTyping(false);
+
+      if (response.success) {
+        const aiMessage = createMessage(
+          response.answer,
+          false,
+          null,
+          {
+            confidence: response.confidence,
+            contexts: response.contexts,
+            timestamp: response.timestamp,
+            source: 'knowledge_base'
+          }
+        );
+
+        setMessages(prev => [...prev, aiMessage]);
+
+        if (!isOpen) {
+          setUnreadCount(prev => prev + 1);
+        }
+      } else {
+        // Handle error
+        const errorMessage = createMessage(
+          response.error || "Sorry, I couldn't access the knowledge base. Please try again.",
+          false
+        );
+        setMessages(prev => [...prev, errorMessage]);
+        setError(response.error);
+      }
+
+    } catch (err) {
+      setIsTyping(false);
+      const errorMessage = createMessage(
+        "I'm having trouble connecting to the knowledge base. Please try again later.",
+        false
+      );
+      setMessages(prev => [...prev, errorMessage]);
+      setError(err.message);
+      console.error('[AIChat] Knowledge Base Error:', err);
+    }
+  };
+
  
   const handleSendMessage = () => {
     if (newMessage.trim() === '' || isTyping) return;
@@ -173,10 +227,21 @@ const AIChat = () => {
   const handleQuickAction = (action, label) => {
     if (isTyping) return;
 
+    // Check if this is a knowledge base action
+    const knowledgeBaseActions = ['cse_highlights', 'financial_overview', 'trading_stats', 'risk_analysis'];
+    const isKnowledgeBaseAction = knowledgeBaseActions.includes(action);
+
+    // Create user message with the label
     const userMessage = createMessage(label, true);
     setMessages(prev => [...prev, userMessage]);
 
-    getAIResponse(label);
+    // Route to appropriate service
+    if (isKnowledgeBaseAction) {
+      const question = getQuickActionQuestion(action);
+      getKnowledgeBaseResponse(question);
+    } else {
+      getAIResponse(label);
+    }
   };
 
   /* Start new conversation */
