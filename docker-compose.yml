@@ -19,10 +19,16 @@ services:
       - OLLAMA_HOST=http://ollama:11434
       - OLLAMA_MODEL=llama3
       - OLLAMA_TEMPERATURE=0.2
+      # Knowledge Base Configuration
+      - KNOWLEDGE_BASE_MODEL=llama3.2
+      - KNOWLEDGE_BASE_EMBEDDING_MODEL=nomic-embed-text
+    volumes:
+      - ./backend/data/knowledge_base:/app/data/knowledge_base
+      - ./backend/data/uploads:/app/data/uploads
     depends_on:
       ollama:
         condition: service_healthy
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8001
     networks:
       - mainnet
 
@@ -222,6 +228,8 @@ volumes:
   ollama_data:
   kafka_data:
   consumer_logs:
+  knowledge_base_data:
+  knowledge_base_uploads:
 
 networks:
   mainnet:
