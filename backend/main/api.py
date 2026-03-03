@@ -16,7 +16,7 @@ import uvicorn
 from fastapi.middleware.cors import CORSMiddleware # Added CORS
 # Import Model 1 Logic
 from src.models.model_1.pd_logic import engineer_features, get_explanations, TICKER_COL, DATE_COL
-
+from src.db.db import db  # MongoDB client from db.py
 app = FastAPI(title="Unified CSE Forensic API")
 
 
@@ -172,6 +172,17 @@ async def detect_fraud(file: UploadFile = File(...)):
                 "reason": reasons[i]
             })
 
+            # Save to MongoDB
+    history_entry = {
+        "timestamp": datetime.now(),
+        "type": "PUMP_DUMP",
+        "scan_summary": {"total_rows": len(raw_df), "frauds_detected": total_found},
+        "detections": results,
+        "report_url": f"/static/reports/{report_filename}" if image_created else None
+    }
+    await db.pump_dump_history.insert_one(history_entry)
+    #end new things
+
     return {
         "status": "Success",
         "scan_summary": {
@@ -183,6 +194,8 @@ async def detect_fraud(file: UploadFile = File(...)):
         "detections": results,
         "report_url": f"/static/reports/{report_filename}" if image_created else None
     }
+
+
 
 @app.post("/api/v1/detect/forensic-lstm")
 async def detect_m2(file: UploadFile = File(...)):
@@ -266,12 +279,41 @@ async def detect_m2(file: UploadFile = File(...)):
                 "fraud_breakdown": report_df['fraud_type'].value_counts().to_dict()
             }
 
+            # Save to MongoDB
+            history_entry = {
+                "timestamp": datetime.now(),
+                "type": "FORENSIC_LSTM",
+                "scan_summary": {"total_rows": len(df), "high_risk_alerts": len(final_alerts)},
+                "alerts": final_alerts,
+                "visual_evidence_url": f"/static/report2/{chart_filename}"
+            }
+            await db.forensic_history.insert_one(history_entry)
+##end new things
             return {
             "status": "Success",
             "scan_summary": summary,
             "alerts": final_alerts,
             "visual_evidence_url": f"/static/report2/{chart_filename}"
         }
+
+
+@app.get("/api/v1/history/pump-dump")
+async def get_pd_history():
+    cursor = db.pump_dump_history.find({"type": "PUMP_DUMP"}).sort("timestamp", -1)
+    history = await cursor.to_list(length=100)
+    for item in history:
+        item["_id"] = str(item["_id"])
+        item["timestamp"] = item["timestamp"].strftime("%Y-%m-%d %H:%M:%S")
+    return {"status": "Success", "data": history}
+
+@app.get("/api/v1/history/forensic")
+async def get_forensic_history():
+    cursor = db.forensic_history.find({"type": "FORENSIC_LSTM"}).sort("timestamp", -1)
+    history = await cursor.to_list(length=100)
+    for item in history:
+        item["_id"] = str(item["_id"])
+        item["timestamp"] = item["timestamp"].strftime("%Y-%m-%d %H:%M:%S")
+    return {"status": "Success", "data": history}
 
 if __name__ == "__main__":
   
