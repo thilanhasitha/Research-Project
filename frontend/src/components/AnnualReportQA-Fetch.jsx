@@ -1,10 +1,11 @@
 /**
- * Annual Report Q&A Component
+ * Annual Report Q&A Component (Fetch API Version)
  * React component for asking questions about the Annual Report
  * Uses native fetch API - no external dependencies needed
  */
 
 import React, { useState, useEffect } from 'react';
+import './AnnualReportQA.css';
 
 const AnnualReportQA = () => {
   const [question, setQuestion] = useState('');
