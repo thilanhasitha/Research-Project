@@ -101,15 +101,9 @@ const ChatContainer = () => {
     }
   };
 
-  const handleQuickAction = async (actionType, actionLabel) => {
-    const quickMessages = {
-      track_order: "I need help tracking my order",
-      product_info: "Can you tell me more about your products?",
-      payment_help: "I have a question about payment",
-      return_policy: "What's your return policy?"
-    };
-
-    const message = quickMessages[actionType] || actionLabel;
+  const handleQuickAction = async (actionType, actionLabel, question = null) => {
+    // Use the provided question if available, otherwise use actionLabel
+    const message = question || actionLabel;
     setNewMessage(message);
     
     setTimeout(() => {
