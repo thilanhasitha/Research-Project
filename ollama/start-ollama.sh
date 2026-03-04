@@ -16,7 +16,7 @@ for i in {1..30}; do
 done
 
 # Pull your required models
-MODELS=("llama3" "nomic-embed-text")
+MODELS=("llama3" "llama3.2" "nomic-embed-text")
 
 for MODEL in "${MODELS[@]}"; do
   echo "Checking model: $MODEL"

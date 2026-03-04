@@ -3,9 +3,9 @@ import { getUserId } from "./userManagementService";
 
 // API configuration
 const API_CONFIG = {
-  baseURL: '/api',
+  baseURL: '',
   endpoints: {
-    chat: '/chat',
+    chat: '/chat/message',
     conversations: '/chat/conversations',
     history: '/chat/history',
     deleteConversation: '/chat/conversation',
@@ -291,12 +291,12 @@ const callBackendAPI = async (message) => {
     console.log('[CHAT] Received response:', data);
 
     return {
-      message: data.reply || "I received your message but couldn't process it properly.",
+      message: data.response || data.reply || "I received your message but couldn't process it properly.",
       conversationId: data.conversation_id,
-      products: data.products,
-      needsMoreInfo: data.needsMoreInfo,
-      showAddToCart: data.showAddToCart,
-      variantData: data.variant_data || null // NEW - map from backend format
+      products: data.products || null,
+      needsMoreInfo: data.needsMoreInfo || false,
+      showAddToCart: data.showAddToCart || false,
+      variantData: data.variant_data || null
     };
 
   } catch (error) {
