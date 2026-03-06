@@ -5,10 +5,18 @@ echo "Starting Ollama server..."
 ollama serve &
 
 echo "Waiting for Ollama to start..."
-sleep 5
+# Wait for Ollama to be ready with better retry logic
+for i in {1..30}; do
+  if ollama list >/dev/null 2>&1; then
+    echo "Ollama is ready!"
+    break
+  fi
+  echo "Waiting for Ollama to be ready... ($i/30)"
+  sleep 2
+done
 
 # Pull your required models
-MODELS=("llama3" "nomic-embed-text")
+MODELS=("llama3" "llama3.2" "nomic-embed-text")
 
 for MODEL in "${MODELS[@]}"; do
   echo "Checking model: $MODEL"
@@ -20,4 +28,7 @@ for MODEL in "${MODELS[@]}"; do
   fi
 done
 
+echo "All models ready. Ollama is running."
+
+# Keep container running
 wait

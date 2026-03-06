@@ -10,7 +10,10 @@ from app.routes.rss_routes import router as rss_router
 from app.routes.chat_routes import router as chat_router
 from app.routes.news_chat_routes import router as news_chat_router
 from app.routes.admin_routes import router as admin_router
-# from app.routes.rag_routes import router as rag_router
+from app.routes.knowledge_routes import router as knowledge_router
+from app.routes.lstm_routes import router as lstm_router
+from app.routes.rag_routes import router as rag_router
+from app.routes.plot_routes import router as plot_router
 from app.llm.client.ollama_client import OllamaClient
 from app.llm.LLMFactory import LLMFactory 
 
@@ -67,6 +70,13 @@ def read_root():
             "search": "/news-chat/search - Search news articles",
             "trending": "/news-chat/trending - Get trending news",
             "sentiment": "/news-chat/sentiment - Analyze sentiment",
+            "knowledge": "/api/knowledge/query - Query CSE Annual Report",
+            "pdf_rag_ask": "/api/pdf-rag/ask - Ask questions about Annual Report with AI",
+            "pdf_rag_health": "/api/pdf-rag/health - PDF RAG service health",
+            "lstm_predict": "/api/lstm/predict - Stock price predictions",
+            "lstm_query": "/api/lstm/query - Natural language stock queries",
+            "plots_search": "/api/plots/search - Search visualization plots",
+            "plots_health": "/api/plots/health - Plot service health",
             "health": "/news-chat/health - Service health check"
         }
     }
@@ -85,9 +95,12 @@ mongo_client = MongoClient()
 # Register all Routers
 app.include_router(rss_router)
 app.include_router(chat_router)
+app.include_router(plot_router, prefix="/api", tags=["Visualization Plots"])
 app.include_router(news_chat_router)
+app.include_router(lstm_router, prefix="/api", tags=["LSTM Predictions"])
 app.include_router(admin_router)
-#app.include_router(rag_router)
+app.include_router(knowledge_router)
+app.include_router(rag_router)
 
 @app.on_event("startup")
 async def startup():
