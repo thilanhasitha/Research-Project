@@ -1,29 +1,9 @@
 import { useState } from 'react';
 import Card from '../../../shared/components/Card';
-import Button from '../../../shared/components/Button';
+import AIChat from '../components/chat/AIChat';
 
 const SentimentDashboard = () => {
   const [symbol, setSymbol] = useState('AAPL');
-  const [messages, setMessages] = useState<Array<{ role: 'user' | 'bot'; text: string }>>([
-    { role: 'bot', text: 'Hello! Ask me anything about stock sentiment.' }
-  ]);
-  const [input, setInput] = useState('');
-
-  const handleSend = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim()) return;
-    
-    setMessages([...messages, { role: 'user', text: input }]);
-    setInput('');
-    
-    // Simulate bot response
-    setTimeout(() => {
-      setMessages(prev => [...prev, { 
-        role: 'bot', 
-        text: 'This is a demo response. Connect to your sentiment API for real data.' 
-      }]);
-    }, 500);
-  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -73,39 +53,10 @@ const SentimentDashboard = () => {
             </div>
           </Card>
         </div>
-
-        {/* Chatbot */}
-        <div className="lg:col-span-2">
-          <Card title="AI Chatbot">
-            <div className="flex flex-col h-96">
-              <div className="flex-1 overflow-y-auto space-y-3 mb-4">
-                {messages.map((msg, idx) => (
-                  <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-xs px-4 py-2 rounded-lg ${
-                      msg.role === 'user' 
-                        ? 'bg-primary-600 text-white' 
-                        : 'bg-gray-100 text-gray-900'
-                    }`}>
-                      {msg.text}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <form onSubmit={handleSend} className="flex gap-2">
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder="Ask about stock sentiment..."
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
-                />
-                <Button type="submit">Send</Button>
-              </form>
-            </div>
-          </Card>
-        </div>
       </div>
+
+      {/* AI Chat Floating Button & Panel */}
+      <AIChat />
     </div>
   );
 };
