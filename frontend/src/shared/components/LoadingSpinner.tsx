@@ -1,4 +1,4 @@
-import { LoadingState } from '../types/common';
+import type { LoadingState } from '../types/common';
 
 interface LoadingSpinnerProps {
   size?: 'sm' | 'md' | 'lg';

@@ -35,7 +35,7 @@ const Header = () => {
     <header className="bg-gray-900 text-white sticky top-0 z-50 shadow-md">
       <div className="max-w-7xl mx-auto flex items-center justify-between px-2 sm:px-4 md:px-6 py-3 md:py-4">
         {/* Left Section */}
-        <div className="flex items-center space-x-2 lg:space-x-4 flex-shrink-0">
+        <div className="flex items-center space-x-2 lg:space-x-4 shrink-0">
           {/* Brand */}
           <Link
             to={ROUTES.HOME}
@@ -45,7 +45,7 @@ const Header = () => {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex space-x-4 lg:space-x-6 flex-shrink">
+          <nav className="hidden lg:flex space-x-4 lg:space-x-6 shrink">
             {NAV_ITEMS.map((item) => (
               <Link
                 key={item.name}
@@ -63,9 +63,9 @@ const Header = () => {
         </div>
 
         {/* Right Section */}
-        <div className="flex items-center space-x-2 lg:space-x-4 flex-shrink-0">
+        <div className="flex items-center space-x-2 lg:space-x-4 shrink-0">
           {/* Search (Desktop only) */}
-          <div className="hidden lg:block relative flex-shrink">
+          <div className="hidden lg:block relative shrink">
             <input
               type="text"
               placeholder="What are you looking for?"

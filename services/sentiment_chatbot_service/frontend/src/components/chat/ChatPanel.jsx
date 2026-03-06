@@ -84,8 +84,8 @@ const ChatPanel = ({
   return (
     <div
       className="
-        fixed bottom-8 right-6 z-40
-        w-[35rem] max-w-[calc(100vw-3rem)]
+        fixed z-40
+        w-140 max-w-[calc(100vw-3rem)]
         animate-fadeIn
         sm:h-[80vh] h-[90vh]
         sm:rounded-2xl rounded-none
@@ -105,7 +105,7 @@ const ChatPanel = ({
       >
 
         {/* Chat Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-t-2xl">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-linear-to-r from-purple-600 to-pink-600 text-white rounded-t-2xl">
           <div className="flex items-center gap-3">
             {/* Menu Icon for History */}
             <button
@@ -209,7 +209,7 @@ const ChatPanel = ({
             <button
               onClick={onSendMessage}
               disabled={newMessage.trim() === '' || isTyping}
-              className="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-3 rounded-xl hover:opacity-90 disabled:opacity-50"
+              className="bg-linear-to-r from-purple-600 to-pink-600 text-white p-3 rounded-xl hover:opacity-90 disabled:opacity-50"
               aria-label="Send message"
             >
               <Send className="w-4 h-4" />

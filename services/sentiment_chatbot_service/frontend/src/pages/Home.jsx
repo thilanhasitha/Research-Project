@@ -136,7 +136,7 @@ const HomePage = () => {
               index === currentSlide ? 'opacity-100' : 'opacity-0'
             }`}
           >
-            <div className={`absolute inset-0 bg-gradient-to-r ${slide.bgGradient}`} />
+            <div className={`absolute inset-0 bg-linear-to-r ${slide.bgGradient}`} />
             <div className="absolute inset-0 bg-black bg-opacity-20" />
             <div className="relative z-10 flex items-center justify-between max-w-7xl mx-auto px-6 h-full">
               <div className="flex-1 text-white">
@@ -225,14 +225,14 @@ const HomePage = () => {
                 to={category.link}
                 className="group relative overflow-hidden rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
               >
-                <div className="aspect-[4/5] overflow-hidden">
+                <div className="aspect-4/5 overflow-hidden">
                   <img
                     src={category.image}
                     alt={category.name}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                   />
                 </div>
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
+                <div className="absolute inset-0 bg-linear-to-t from-black via-transparent to-transparent" />
                 <div className="absolute bottom-6 left-6 text-white">
                   <h3 className="text-2xl font-bold mb-1">{category.name}</h3>
                   <p className="text-gray-200">{category.description}</p>
@@ -247,7 +247,7 @@ const HomePage = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-r from-purple-600 to-indigo-700">
+      <section className="py-20 bg-linear-to-r from-purple-600 to-indigo-700">
         <div className="max-w-4xl mx-auto text-center px-6">
           <h2 className="text-4xl font-bold text-white mb-6">
             Join Our Stock-Market Community

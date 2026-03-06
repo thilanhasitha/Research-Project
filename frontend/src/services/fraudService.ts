@@ -1,6 +1,6 @@
 import { fraudApi } from './api';
-import { FraudAlert, TradingPattern } from '../modules/fraud/types';
-import { ApiResponse, PaginatedResponse } from '../shared/types/common';
+import type { FraudAlert, TradingPattern } from '../modules/fraud/types';
+import type { ApiResponse, PaginatedResponse } from '../shared/types/common';
 
 export const fraudService = {
   // Get active fraud alerts

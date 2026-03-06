@@ -3,6 +3,7 @@ import ChatFloatingButton from './ChatFloatingButton';
 import ChatPanel from './ChatPanel';
 import ChatHistory from './ChatHistory';
 import type { Message, Conversation, ConnectionStatus } from '../../types';
+import { askQuestion, checkHealth } from '../utils/newsRAGService';
 
 // Create a message object
 const createMessage = (
@@ -86,10 +87,13 @@ const AIChat: React.FC = () => {
   useEffect(() => {
     const verifyConnection = async () => {
       try {
-        // TODO: Replace with actual health check API call
-        // const health = await checkHealth();
-        // For now, simulate connection check
-        setConnectionStatus('connected');
+        const health = await checkHealth();
+        if (health.success && health.healthy) {
+          setConnectionStatus('connected');
+        } else {
+          setConnectionStatus('disconnected');
+          setError('News service is offline');
+        }
       } catch (err) {
         setConnectionStatus('disconnected');
         setError('News service is offline');
@@ -114,17 +118,28 @@ const AIChat: React.FC = () => {
     setError(null);
 
     try {
-      // TODO: Replace with actual API calls
-      // const response = await askQuestion(userMessage, {...});
+      // Call the real news RAG API
+      const response = await askQuestion(userMessage, {
+        userId: 'user_001',
+        conversationId: currentConversationId,
+        includeSources: true,
+        contextLimit: 5
+      });
+
+      if (!response.success || !response.answer) {
+        throw new Error(response.error || 'Failed to get response');
+      }
       
-      // Simulate API response
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      // Create AI message with sources and metadata
       const aiMessage = createMessage(
-        `This is a simulated response to: "${userMessage}". Please connect the sentiment service APIs to get real responses.`,
+        response.answer,
         false,
-        null, // sources
-        { contextUsed: true, timestamp: new Date().toISOString() }
+        response.sources || null,
+        {
+          contextUsed: response.contextUsed,
+          timestamp: response.timestamp,
+          sourceCount: response.sources?.length || 0
+        }
       );
 
       setMessages(prev => [...prev, aiMessage]);

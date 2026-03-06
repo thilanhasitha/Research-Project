@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import Card from '../../../shared/components/Card';
 import Button from '../../../shared/components/Button';
 import { LoadingWrapper } from '../../../shared/components/LoadingSpinner';
-import { StockValuation } from '../types';
+import type { StockValuation } from '../types';
 import { valuationService } from '../../../services/valuationService';
-import { LoadingState } from '../../../shared/types/common';
+import type { LoadingState } from '../../../shared/types/common';
 
 const ValuationDashboard = () => {
   const [symbol, setSymbol] = useState('AAPL');
