@@ -1,1 +1,279 @@
-# Docker compose file
+
+
+services:
+  # --------------------
+  # Backend
+  # --------------------
+  backend:
+    build:
+      context: ./services/sentiment_chatbot_service/backend
+      dockerfile: Dockerfile
+    container_name: research_backend
+    ports:
+      - "8001:8001"
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+      - MONGO_URI=mongodb+srv://research:user@cluster0.sc4zaj7.mongodb.net/research_db?appName=Cluster0
+      - DB_NAME=research_db
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_MODEL=llama3
+      - OLLAMA_TEMPERATURE=0.2
+      
+      # Knowledge Base Configuration
+      - KNOWLEDGE_BASE_MODEL=llama3.2
+      - KNOWLEDGE_BASE_EMBEDDING_MODEL=nomic-embed-text
+    volumes:
+      - ./services/sentiment_chatbot_service/backend/data/knowledge_base:/app/data/knowledge_base
+      - ./services/sentiment_chatbot_service/backend/data/uploads:/app/data/uploads
+    depends_on:
+      ollama:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8001
+    networks:
+      - mainnet
+
+  # --------------------
+  # Frontend
+  # --------------------
+  frontend:
+    build:
+      context: ./services/sentiment_chatbot_service/frontend
+      dockerfile: Dockerfile
+    container_name: research_frontend
+    ports:
+      - "3001:80"
+    restart: unless-stopped
+    depends_on:
+      - backend
+    networks:
+      - mainnet
+
+  # --------------------
+  # Ollama
+  # --------------------
+  ollama:
+    build:
+      context: ./services/sentiment_chatbot_service/ollama
+      dockerfile: Dockerfile
+    container_name: ollama_new
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data1:/root/.ollama
+    restart: unless-stopped
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:11434/api/tags || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    networks:
+      - mainnet
+
+  # --------------------
+  # MongoDB
+  # --------------------
+
+  weaviate:
+    image: semitechnologies/weaviate:1.33.0
+    ports:
+      - "8080:8080"
+    environment:
+      ENABLE_MODULES: 'text2vec-ollama'
+      DEFAULT_VECTORIZER_MODULE: 'text2vec-ollama'
+      OLLAMA_API_ENDPOINT: 'http://ollama:11434'
+      QUERY_DEFAULTS_LIMIT: 25
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
+      PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
+      CLUSTER_HOSTNAME: 'node1'
+    volumes:
+      - ./services/sentiment_chatbot_service/weaviate_data:/var/lib/weaviate
+    depends_on:
+      ollama:
+        condition: service_healthy
+    networks:
+      - mainnet
+
+  mongo:
+    build:
+      context: ./services/sentiment_chatbot_service/mongo
+      dockerfile: Dockerfile
+    container_name: research_mongo
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: research
+      MONGO_INITDB_ROOT_PASSWORD: user
+      MONGO_INITDB_DATABASE: research_db
+    volumes:
+      - mongo_data1:/data/db
+    entrypoint: ["/scripts/mongo-entrypoint.sh"]
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval 'db.runCommand({ ping: 1 })' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - mainnet
+
+  kafka:
+    image: bitnami/kafka:3.6
+    container_name: kafka_new1
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    environment:
+      KAFKA_ENABLE_KRAFT: yes
+      KAFKA_CFG_PROCESS_ROLES: broker,controller
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CFG_NODE_ID: 1
+      KAFKA_KRAFT_CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: true
+      KAFKA_CFG_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_CFG_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_CFG_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      ALLOW_PLAINTEXT_LISTENER: yes
+    volumes:
+      - kafka_data1:/bitnami/kafka
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 6
+      start_period: 40s
+    networks:
+      - mainnet
+
+  kafka-connect:
+    image: quay.io/debezium/connect:2.7
+    container_name: kafka-connect_new
+    ports:
+      - "8083:8083"
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: 1
+      CONFIG_STORAGE_TOPIC: connect_configs
+      OFFSET_STORAGE_TOPIC: connect_offsets
+      STATUS_STORAGE_TOPIC: connect_statuses
+      CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      STATUS_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+      CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+    volumes:
+      - ./services/sentiment_chatbot_service/connectors:/etc/kafka-connect/connectors
+    depends_on:
+      kafka:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8083/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    networks:
+      - mainnet
+
+  # --------------------
+  # Consumer Service (MongoDB CDC to Weaviate)
+  # --------------------
+  consumer:
+    build:
+      context: ./services/sentiment_chatbot_service/consumer
+      dockerfile: dockerfile
+    container_name: research_consumer
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+      - KAFKA_BROKER=kafka:9092
+      - KAFKA_TOPICS=research_db.research_db.rss_news
+      - KAFKA_GROUP_ID=research-consumer-group
+      - WEAVIATE_HOST=weaviate
+      - WEAVIATE_HTTP_PORT=8080
+      - WEAVIATE_GRPC_PORT=50051
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_MODEL=nomic-embed-text
+      - RETRY_DELAY=1
+      - MAX_RETRIES=3
+    depends_on:
+      kafka:
+        condition: service_healthy
+      kafka-connect:
+        condition: service_healthy
+      weaviate:
+        condition: service_started
+      ollama:
+        condition: service_healthy
+    networks:
+      - mainnet
+    volumes:
+      - ./services/sentiment_chatbot_service/consumer:/app
+      - consumer_logs1:/app/logs
+
+  # --------------------
+  # LSTM Stock Prediction Service
+  # --------------------
+  lstm-predictor:
+    build:
+      context: ./services/sentiment_chatbot_service/backend/lstm_stock_prediction
+      dockerfile: Dockerfile
+    container_name: LSTM_model
+    ports:
+      - "8002:8002"
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+      - TF_CPP_MIN_LOG_LEVEL=2
+      - CHROMADB_HOST=chromadb
+      - CHROMADB_PORT=8000
+    volumes:
+      - ./services/sentiment_chatbot_service/backend/lstm_stock_prediction/models:/app/models
+      - ./services/sentiment_chatbot_service/backend/lstm_stock_prediction/data:/app/data
+      - ./services/sentiment_chatbot_service/backend/lstm_stock_prediction/logs:/app/logs
+      - ./services/sentiment_chatbot_service/backend/lstm_stock_prediction/results:/app/results
+    depends_on:
+      - chromadb
+    networks:
+      - mainnet
+
+  # --------------------
+  # ChromaDB - Vector Database for LSTM Predictions
+  # --------------------
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: research_chromadb
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    environment:
+      - IS_PERSISTENT=TRUE
+      - PERSIST_DIRECTORY=/chroma/chroma
+      - ANONYMIZED_TELEMETRY=False
+    volumes:
+      - chromadb_data1:/chroma/chroma
+    networks:
+      - mainnet
+
+volumes:
+  mongo_data1:
+  ollama_data1:
+  kafka_data1:
+  consumer_logs1:
+  knowledge_base_data:
+  knowledge_base_uploads:
+  chromadb_data1:
+
+networks:
+  mainnet:
+    external: false
