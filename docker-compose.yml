@@ -42,7 +42,7 @@ services:
       dockerfile: Dockerfile
     container_name: research_frontend
     ports:
-      - "3001:80"
+      - "5173:80"
     restart: unless-stopped
     depends_on:
       - backend
