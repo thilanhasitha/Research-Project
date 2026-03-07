@@ -29,7 +29,7 @@ const ConnectionTestPanel: React.FC = () => {
     return (
       <div className={`p-4 rounded-lg border-2 ${result.success ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50'}`}>
         <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
-          {result.success ? '✅' : '❌'} {title}
+          {result.success ? '' : ''} {title}
         </h3>
         
         <div className="space-y-2 text-sm">

@@ -10,6 +10,14 @@ export interface SentimentData {
   sources: number;
   timestamp: string;
   keywords?: string[];
+  trend?: SentimentTrendPoint[];
+}
+
+export interface SentimentTrendPoint {
+  date: string;
+  score: number;
+  sentiment: 'positive' | 'negative' | 'neutral';
+  volume: number;
 }
 
 export interface ChatMessage {
