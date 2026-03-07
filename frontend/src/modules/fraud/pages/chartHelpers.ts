@@ -30,3 +30,19 @@ export const SEVERITY_COLORS = {
   NORMAL: "#22c55e",
   PRIMARY: "#3b82f6",
 };
+
+export const transformForensicPieData = (
+  breakdown: Record<string, number>,
+): ChartDataItem[] => {
+  return Object.entries(breakdown).map(([name, value]) => ({
+    name,
+    value,
+  }));
+};
+
+// Add to your SEVERITY_COLORS
+export const FORENSIC_COLORS: Record<string, string> = {
+  "BOT SIGNATURE": "#8b5cf6", // Purple
+  "MARKET RAMPING": "#f59e0b", // Amber
+  "CRITICAL: PUMP & DUMP": "#ef4444", // Red
+};

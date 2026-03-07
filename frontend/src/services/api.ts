@@ -60,3 +60,6 @@ export const recommendationApi = createApiClient(API_BASE_URLS.recommendation);
 
 // Export default client
 export default createApiClient;
+
+
+

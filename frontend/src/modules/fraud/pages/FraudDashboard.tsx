@@ -2,7 +2,11 @@ import React, { useState, useEffect } from "react";
 import Card from "../../../shared/components/Card";
 import Button from "../../../shared/components/Button";
 import { fraudService } from "../../../services/fraudService";
-import { transformLineData, transformPieData } from "./chartHelpers";
+import {
+  transformLineData,
+  transformPieData,
+  transformForensicPieData,
+} from "./chartHelpers";
 import LineChartComponent from "./LineChartComponent";
 import PieChartComponent from "./PieChartComponent";
 import {
@@ -35,16 +39,17 @@ const FraudDashboard = () => {
     if (savedM2) setDataM2(JSON.parse(savedM2));
   }, []);
 
-  useEffect(() => {
-    if (viewMode === "history") {
-      setLoading(true);
-      fraudService.getHistory().then((data) => {
-        const type = activeModel === "m1" ? "Pump & Dump" : "Forensic LSTM";
-        setHistory(data.filter((item) => item.model_type === type));
-        setLoading(false);
-      });
-    }
-  }, [viewMode, activeModel]);
+useEffect(() => {
+  if (viewMode === "history") {
+    setLoading(true);
+    fraudService.getHistory().then((data) => {
+      // Map the backend model names to your UI labels
+      const filterType = activeModel === "m1" ? "Pump & Dump" : "Forensic LSTM";
+      setHistory(data.filter((item) => item.model_type === filterType));
+      setLoading(false);
+    });
+  }
+}, [viewMode, activeModel]);
 
   const handleFileUpload = async (
     event: React.ChangeEvent<HTMLInputElement>,
@@ -348,14 +353,117 @@ const FraudDashboard = () => {
               </div>
             )}
 
+            {/* ... inside FraudDashboard.tsx ... */}
+
             {activeModel === "m2" && dataM2 && (
-              <div className="space-y-6">
-                <Card title="Neural Reconstruction Error Graph (LSTM Evidence)">
-                  <img
-                    src={`${BACKEND_URL}${dataM2.visual_evidence_url}`}
-                    className="w-full rounded-xl shadow-lg"
-                    alt="LSTM Plot"
-                  />
+              <div className="space-y-8 animate-in fade-in duration-500">
+                {/* 1. STATS ROW */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <Card title="Rows Scanned">
+                    <p className="text-3xl font-extrabold">
+                      {dataM2.scan_summary.total_rows_scanned.toLocaleString()}
+                    </p>
+                  </Card>
+                  <Card title="Total Companies">
+                    <p className="text-3xl font-extrabold text-blue-600">
+                      {dataM2.scan_summary.total_companies}
+                    </p>
+                  </Card>
+                  <Card title="High Risk Alerts">
+                    <p className="text-3xl font-extrabold text-red-600">
+                      {dataM2.scan_summary.high_risk_alerts_found}
+                    </p>
+                  </Card>
+                  <Card title="Top Fraud Type">
+                    <p className="text-xl font-bold text-purple-600 truncate">
+                      {Object.keys(dataM2.scan_summary.fraud_breakdown)[0] ||
+                        "None"}
+                    </p>
+                  </Card>
+                </div>
+
+                {/* 2. CHARTS ROW */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <Card title="Neural Reconstruction Error (Evidence)">
+                    <img
+                      src={`${BACKEND_URL}${dataM2.visual_evidence_url}`}
+                      className="w-full h-[300px] object-contain rounded-xl"
+                      alt="LSTM Plot"
+                    />
+                  </Card>
+                  <Card title="Forensic Breakdown">
+                    <PieChartComponent
+                      chartData={transformForensicPieData(
+                        dataM2.scan_summary.fraud_breakdown,
+                      )}
+                    />
+                  </Card>
+                </div>
+
+                {/* 3. FORENSIC EVIDENCE TABLE */}
+                <Card title="Forensic Detection Log (LSTM Analysis)">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead className="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider">
+                        <tr>
+                          <th className="p-4 border-b">Symbol/Date</th>
+                          <th className="p-4 border-b">Fraud Type</th>
+                          <th className="p-4 border-b">Forensic Evidence</th>
+                          <th className="p-4 border-b">DTW Score</th>
+                          <th className="p-4 border-b">Confidence</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {dataM2.alerts.map((alert: any, i: number) => (
+                          <tr
+                            key={i}
+                            className="hover:bg-slate-50 transition-colors"
+                          >
+                            <td className="p-4">
+                              <div className="font-bold text-slate-700">
+                                {alert.Symbol}
+                              </div>
+                              <div className="text-[10px] text-slate-400 font-mono">
+                                {alert.Date}
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <span
+                                className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${
+                                  alert.risk_level === "CRITICAL"
+                                    ? "bg-red-100 text-red-700"
+                                    : alert.risk_level === "HIGH"
+                                      ? "bg-orange-100 text-orange-700"
+                                      : "bg-blue-100 text-blue-700"
+                                }`}
+                              >
+                                {alert.fraud_type}
+                              </span>
+                            </td>
+                            <td className="p-4 text-sm text-slate-600 italic">
+                              "{alert.forensic_evidence}"
+                            </td>
+                            <td className="p-4 font-mono text-xs">
+                              {alert.dtw_score.toFixed(4)}
+                            </td>
+                            <td className="p-4">
+                              <div className="flex items-center gap-2">
+                                <div className="w-12 bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                                  <div
+                                    className="bg-green-500 h-full"
+                                    style={{ width: alert.confidence_score }}
+                                  ></div>
+                                </div>
+                                <span className="text-xs font-bold text-green-600">
+                                  {alert.confidence_score}
+                                </span>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </Card>
               </div>
             )}
@@ -387,17 +495,28 @@ const FraudDashboard = () => {
                           <Button
                             variant="outline"
                             size="sm"
+                            onClick={() => {
+                              // This loads the history item into the active view
+                              if (activeModel === "m1") setDataM1(item);
+                              else setDataM2(item);
+                              setViewMode("upload"); // Switch to dashboard view
+                            }}
+                          >
+                            View
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
                             onClick={() => downloadJSON(item)}
-                            className="gap-2"
                           >
                             <MdCode /> JSON
                           </Button>
                           <Button
                             size="sm"
                             onClick={() => fraudService.downloadPDF(item)}
-                            className="gap-2 bg-slate-800"
+                            className="bg-slate-800"
                           >
-                            <MdCloudDownload /> PDF Report
+                            <MdCloudDownload /> PDF
                           </Button>
                         </td>
                       </tr>

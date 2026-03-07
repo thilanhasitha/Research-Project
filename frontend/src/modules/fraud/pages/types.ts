@@ -23,12 +23,27 @@ export interface PredictionResponse {
 }
 
 
-// Interface for History
-export interface HistoryItem {
-  task_id: string;
-  timestamp: string;
-  model_type: 'Pump & Dump' | 'Forensic LSTM';
-  anomaly_count: number;
-  total_rows: number;
-  detections: AnomalyData[]; // We store the full results here for JSON export
+
+export interface ForensicLSTMResponse {
+  status: string;
+  scan_summary: {
+    total_rows_scanned: number;
+    total_companies: number;
+    high_risk_alerts_found: number;
+    fraud_breakdown: Record<string, number>;
+  };
+  alerts: ForensicAlert[];
+  visual_evidence_url: string;
+}
+
+export interface ForensicAlert {
+  Symbol: string;
+  Date: string;
+  fraud_type: string;
+  risk_level: string;
+  forensic_evidence: string;
+  confidence_score: string;
+  dtw_score: number;
+  Price_Impact: number;
+  // ... other numeric fields from your JSON
 }
