@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Card from '../../../shared/components/Card';
 import AIChat from '../components/chat/AIChat';
+import SentimentTrendChart from '../components/SentimentTrendChart';
 import { LoadingWrapper } from '../../../shared/components/LoadingSpinner';
 import { sentimentService } from '../../../services/sentimentService';
 import type { LoadingState } from '../../../shared/types/common';
@@ -145,6 +146,37 @@ const SentimentDashboard = () => {
                   </>
                 )}
               </form>
+            </LoadingWrapper>
+          </Card>
+        </div>
+
+        {/* Sentiment Trend Chart */}
+        <div className="lg:col-span-2">
+          <Card>
+            <LoadingWrapper loadingState={loadingState} error={error}>
+              {sentimentData && sentimentData.trend ? (
+                <SentimentTrendChart data={sentimentData.trend} days={7} />
+              ) : (
+                <div className="flex items-center justify-center h-[300px] bg-gray-50 rounded-lg">
+                  <div className="text-center">
+                    <svg
+                      className="mx-auto h-12 w-12 text-gray-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                      />
+                    </svg>
+                    <p className="mt-2 text-sm text-gray-600">No trend data available</p>
+                    <p className="text-xs text-gray-500 mt-1">Search for a topic to see sentiment trends</p>
+                  </div>
+                </div>
+              )}
             </LoadingWrapper>
           </Card>
         </div>
