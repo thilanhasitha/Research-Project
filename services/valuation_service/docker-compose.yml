@@ -1,0 +1,20 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: ve_postgres
+    restart: always
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${VE_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${VE_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${VE_POSTGRES_DB}
+    ports:
+      - "${VE_POSTGRES_PORT}:5432"
+    volumes:
+      - ve_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  ve_postgres_data:

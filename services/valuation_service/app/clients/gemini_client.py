@@ -1,0 +1,177 @@
+"""
+Gemini AI client for extracting financial data from PDFs.
+"""
+import json
+import base64
+from typing import Any, Dict
+
+import httpx
+
+from app.core.config import get_settings
+
+
+class GeminiClient:
+    """Client for interacting with Google Gemini API."""
+
+    def __init__(self, api_key: str | None = None):
+        settings = get_settings()
+        self.api_key = api_key or settings.gemini_api_key
+        self.model = settings.gemini_model
+        self.base_url = "https://generativelanguage.googleapis.com/v1beta"
+        
+        if not self.api_key:
+            raise ValueError("Gemini API key is required. Set VE_GEMINI_API_KEY environment variable.")
+
+    async def extract_financial_data(self, pdf_content: bytes, filename: str) -> Dict[str, Any]:
+        """
+        Extract financial data from PDF using Gemini API.
+        
+        Args:
+            pdf_content: Binary content of the PDF file
+            filename: Name of the PDF file
+            
+        Returns:
+            Dictionary containing extracted financial data
+        """
+        # Encode PDF to base64
+        pdf_base64 = base64.b64encode(pdf_content).decode('utf-8')
+        
+        # Prepare the prompt
+        prompt = """
+        Analyze this financial report PDF and extract the following information in JSON format:
+        
+        {
+            "company_name": "Company name",
+            "report_year": 2024,
+            "currency": "LKR",
+            "financial_data": {
+                "years": [2021, 2022, 2023, 2024, 2025],
+                "revenue": [numbers for each year],
+                "operating_cash_flow": [numbers for each year],
+                "capital_expenditure": [numbers for each year],
+                "free_cash_flow": [calculated: OCF - CAPEX for each year]
+            },
+            "additional_metrics": {
+                "shares_outstanding": number,
+                "current_assets": number,
+                "current_liabilities": number,
+                "total_debt": number,
+                "cash_and_equivalents": number
+            }
+        }
+        
+        Guidelines:
+        - Extract data from the cash flow statement
+        - Operating Cash Flow (OCF) = Cash from Operating Activities
+        - Capital Expenditure (CAPEX) = Cash used for purchasing fixed assets
+        - Free Cash Flow = Operating Cash Flow - Capital Expenditure
+        - If multiple years are available, extract all of them
+        - Return only valid JSON, no additional text
+        - Use null for missing values
+        """
+        
+        # Prepare API request
+        url = f"{self.base_url}/models/{self.model}:generateContent"
+        
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(
+                url,
+                params={"key": self.api_key},
+                json={
+                    "contents": [
+                        {
+                            "parts": [
+                                {"text": prompt},
+                                {
+                                    "inline_data": {
+                                        "mime_type": "application/pdf",
+                                        "data": pdf_base64
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    "generationConfig": {
+                        "temperature": 0.1,
+                        "topK": 32,
+                        "topP": 1,
+                        "maxOutputTokens": 4096,
+                    }
+                }
+            )
+            
+            response.raise_for_status()
+            result = response.json()
+            
+            # Extract the generated content
+            if "candidates" in result and len(result["candidates"]) > 0:
+                text_content = result["candidates"][0]["content"]["parts"][0]["text"]
+                
+                # Try to parse JSON from the response
+                # Sometimes Gemini wraps JSON in markdown code blocks
+                text_content = text_content.strip()
+                if text_content.startswith("```json"):
+                    text_content = text_content[7:]
+                if text_content.startswith("```"):
+                    text_content = text_content[3:]
+                if text_content.endswith("```"):
+                    text_content = text_content[:-3]
+                    
+                extracted_data = json.loads(text_content.strip())
+                
+                return {
+                    "status": "success",
+                    "filename": filename,
+                    "extracted_data": extracted_data,
+                    "raw_response": result
+                }
+            else:
+                return {
+                    "status": "error",
+                    "filename": filename,
+                    "error": "No content generated by Gemini",
+                    "raw_response": result
+                }
+                
+    async def analyze_with_context(self, pdf_content: bytes, custom_prompt: str) -> Dict[str, Any]:
+        """
+        Analyze PDF with a custom prompt.
+        
+        Args:
+            pdf_content: Binary content of the PDF file
+            custom_prompt: Custom analysis prompt
+            
+        Returns:
+            API response
+        """
+        pdf_base64 = base64.b64encode(pdf_content).decode('utf-8')
+        
+        url = f"{self.base_url}/models/{self.model}:generateContent"
+        
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(
+                url,
+                params={"key": self.api_key},
+                json={
+                    "contents": [
+                        {
+                            "parts": [
+                                {"text": custom_prompt},
+                                {
+                                    "inline_data": {
+                                        "mime_type": "application/pdf",
+                                        "data": pdf_base64
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    "generationConfig": {
+                        "temperature": 0.2,
+                        "maxOutputTokens": 4096,
+                    }
+                }
+            )
+            
+            response.raise_for_status()
+            return response.json()
