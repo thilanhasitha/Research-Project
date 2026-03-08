@@ -1,18 +1,24 @@
-FROM python:3.11-slim
+FROM python:3.10-slim
 
-WORKDIR /main
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
 
-# Copy requirements
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt .
+RUN pip install --upgrade pip && \
+    pip install --timeout=1000 --retries=5 -r requirements.txt
 
-# 1. Install uvicorn/fastapi EXPLICITLY first 
-# 2. Then install the rest of the requirements
-RUN pip install --no-cache-dir uvicorn fastapi && \
-    pip install --no-cache-dir --default-timeout=1000 -r requirements.txt
-
-COPY . .
+COPY main ./main
+COPY src ./src
+COPY static ./static
 
 EXPOSE 8003
 
-# Use the python -m flag to be safe
-CMD ["python", "-m", "uvicorn", "main.api:app", "--host", "0.0.0.0", "--port", "8003"]
+CMD ["uvicorn", "main.api:app", "--host", "0.0.0.0", "--port", "8003"]

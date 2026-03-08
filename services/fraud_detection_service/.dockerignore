@@ -3,9 +3,10 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-
+.venv/
 # Virtual environments
 venv/
+venv
 .env
 .env.*  
 
@@ -33,6 +34,11 @@ yarn-error.log
 Dockerfile
 docker-compose.yml
 
+.ipynb_checkpoints
+
+
+data/
+models/*.h5
 
 
 
