@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from app.Database.weaviate_client import WeaviateClient
 from app.Database.repositories.rss_repository import RSSRepository
 from app.llm.LLMFactory import LLMFactory
+from app.utils.query_classifier import QueryClassifier
 from weaviate.classes.query import Filter
 import logging
 
@@ -22,6 +23,7 @@ class NewsRAGService:
         self.rss_repository = RSSRepository()
         self.llm_provider = LLMFactory.get_provider("ollama")
         self.llm = self.llm_provider.get_llm()
+        self.query_classifier = QueryClassifier()
         self._ensure_connected()
     
     def _ensure_connected(self):
@@ -361,6 +363,7 @@ class NewsRAGService:
     ) -> Dict[str, Any]:
         """
         Answer a user question using RAG - retrieve relevant news and generate answer.
+        Handles greetings and out-of-scope queries without retrieving articles.
         
         Args:
             question: User's question
@@ -372,6 +375,27 @@ class NewsRAGService:
         """
         try:
             logger.info(f"Answering question: '{question}'")
+            
+            # Step 0: Classify the query (greeting, out-of-scope, or in-scope)
+            classification, direct_response = self.query_classifier.classify_query(question)
+            
+            # If it's a greeting or out-of-scope, return direct response without retrieval
+            if classification in ['greeting', 'out_of_scope']:
+                logger.info(f"Query classified as '{classification}', returning direct response without article retrieval")
+                return {
+                    "answer": direct_response,
+                    "sources": [],
+                    "context_used": 0,
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "metadata": {
+                        "classification": classification,
+                        "direct_response": True,
+                        "articles_retrieved": False
+                    }
+                }
+            
+            # If in-scope, proceed with normal RAG flow
+            logger.info(f"Query classified as 'in_scope', proceeding with RAG retrieval")
             
             # Detect time-based filters from question
             date_filter = self._detect_time_filter(question)
@@ -487,7 +511,12 @@ ANSWER (based only on the articles above):"""
                 "answer": answer,
                 "context_used": len(news_articles),
                 "timestamp": datetime.utcnow().isoformat(),
-                "date_range_used": date_range_used  # Inform user about the actual date range
+                "date_range_used": date_range_used,  # Inform user about the actual date range
+                "metadata": {
+                    "classification": "in_scope",
+                    "direct_response": False,
+                    "articles_retrieved": True
+                }
             }
             
             if include_sources:

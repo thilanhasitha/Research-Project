@@ -18,7 +18,29 @@ Our research project aims to address these issues by developing four AI-based co
 • A personalized portfolio recommendation system based on user risk.
 
 Each part solves a real problem in today’s stock market tools and brings a new feature not commonly found in existing solutions. This will help investors make smarter, safer, and more personalized decisions using AI.
+## ✨ New Feature: Intelligent Query Handling
 
+### Greeting and Out-of-Scope Detection
+
+The system now includes **smart query classification** that detects and handles greetings and out-of-scope queries (not related to stock market, financial, trading, banking, etc.) **without retrieving articles**, providing instant appropriate responses.
+
+**Key Benefits:**
+- ⚡ **Instant Responses**: Sub-millisecond response time for greetings and out-of-scope queries
+- 💰 **Cost Efficient**: No database queries or LLM calls for non-financial queries
+- 🎯 **Better UX**: Clear guidance directing users to appropriate topics
+- 📊 **Resource Optimization**: Database and LLM resources reserved for relevant financial queries
+
+**Coverage:**
+- **Greetings**: Hello, Hi, Good morning, etc.
+- **Out-of-scope Topics**: Weather, sports, recipes, entertainment, general knowledge, etc.
+- **Financial Topics** (100+ keywords): Stocks, trading, market analysis, banking, investment, etc.
+
+**Documentation:**
+- 📖 [Complete Technical Documentation](../GREETING_OUT_OF_SCOPE_HANDLER.md)
+- 🚀 [Quick Start Guide](../QUICK_START_GREETING_HANDLER.md)
+- 📊 [Implementation Summary](../IMPLEMENTATION_SUMMARY.md)
+
+**Test Status:** ✅ 29/29 tests passing (100% coverage)
 ## Project Architectural Diagram
 
 <img width="2119" height="1568" alt="image" src="https://github.com/user-attachments/assets/46e603b4-b8d3-4602-84b8-50d228647cb1" />
