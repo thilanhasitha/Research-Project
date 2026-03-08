@@ -1,6 +1,6 @@
 import { recommendationApi } from './api';
-import { StockRecommendation, RecommendationRequest } from '../modules/recommendation/types';
-import { ApiResponse } from '../shared/types/common';
+import type { StockRecommendation, RecommendationRequest } from '../modules/recommendation/types';
+import type { ApiResponse } from '../shared/types/common';
 
 export const recommendationService = {
   // Get personalized recommendations

@@ -279,6 +279,37 @@ async def general_responder(state: AgentState) -> dict:
     # Check if this is a news-related intent - if so, we need to force tool usage
     is_news_intent = state.current_intent in ["news_search", "market_analysis", "data_lookup"]
     
+    # Additional check: detect news keywords even if intent wasn't classified as news
+    input_lower = state.input.lower()
+    news_keywords = ['latest', 'recent', 'new', 'current', 'today', 'yesterday', 'breaking', 'news']
+    has_news_keywords = any(keyword in input_lower for keyword in news_keywords)
+    
+    # Force news intent if user explicitly asks for news with time keywords
+    if not is_news_intent and has_news_keywords:
+        logger.info(f"[GENERAL_RESPONDER] Detected news keywords, treating as news query")
+        is_news_intent = True
+    
+    # Check if user is asking for generic "latest news"
+    is_generic_latest_news = any(phrase in input_lower for phrase in [
+        'latest news', 'recent news', 'new news', 'newest news',
+        "what's new", 'whats new', 'current news', 'breaking news',
+        'latest articles', 'recent articles', 'today news', "today's news",
+        'give me news', 'show me news', 'get me news'
+    ])
+    
+    logger.info(f"[GENERAL_RESPONDER] is_news_intent={is_news_intent}, is_generic_latest_news={is_generic_latest_news}, has_news_keywords={has_news_keywords}")
+    
+    # For generic latest news queries, skip LLM and directly call get_latest_news
+    if is_generic_latest_news:
+        logger.info(f"[GENERAL_RESPONDER] Generic latest news query detected - forcing tool call")
+        return {
+            "tool_results": [{
+                "name": "get_latest_news",
+                "args": {"limit": 10}
+            }],
+            "has_tool_calls": True
+        }
+    
     # Format messages - include intent for context
     messages = general_responder_prompt.format_messages(
         input=state.input,
@@ -745,30 +776,53 @@ async def format_results(state: AgentState) -> dict:
         
         if not valid_news:
             logger.info("[FORMATTER] No valid news articles found.")
-            return {"output": "I couldn't find any relevant news articles at the moment. Please try a different search query."}
+            return {"output": "I couldn't find any relevant news articles at the moment. Please try a different search query or check back later. The database might be updating."}
         
-        # Format news articles
-        output = f"I found {len(valid_news)} news article(s) from economynext:\n\n"
+        # Format news articles with improved date handling
+        output = f"📰 I found **{len(valid_news)}** news article(s) from economynext:\n\n"
         
-        for idx, article in enumerate(valid_news[:5], 1):
+        for idx, article in enumerate(valid_news[:10], 1):  # Show up to 10 articles
             title = article.get("title", "No title")
-            published = article.get("published", "Unknown date")
+            published = article.get("published", "")
             link = article.get("link", "")
-            content_preview = article.get("content", "")[:150] + "..." if article.get("content") else ""
+            
+            # Get content preview - try clean_text first, then content
+            content_text = article.get("clean_text") or article.get("content", "")
+            content_preview = content_text[:200].strip() + "..." if len(content_text) > 200 else content_text
+            
+            # Format published date
+            published_str = ""
+            if published:
+                try:
+                    from datetime import datetime
+                    if isinstance(published, datetime):
+                        published_str = published.strftime("%B %d, %Y at %I:%M %p")
+                    elif isinstance(published, str):
+                        # Try to parse if it's a string
+                        try:
+                            dt = datetime.fromisoformat(published.replace('Z', '+00:00'))
+                            published_str = dt.strftime("%B %d, %Y at %I:%M %p")
+                        except:
+                            published_str = str(published)
+                    else:
+                        published_str = str(published)
+                except Exception as e:
+                    logger.warning(f"[FORMATTER] Error formatting date: {e}")
+                    published_str = str(published) if published else ""
             
             output += f"**{idx}. {title}**\n"
-            if published and published != "Unknown date":
-                output += f"    Published: {published}\n"
+            if published_str:
+                output += f"   📅 {published_str}\n"
             if content_preview:
                 output += f"   {content_preview}\n"
             if link:
-                output += f"   [Read more]({link})\n"
+                output += f"   🔗 [Read full article]({link})\n"
             output += "\n"
         
-        if len(valid_news) > 5:
-            output += f"\n...and {len(valid_news) - 5} more articles.\n"
+        if len(valid_news) > 10:
+            output += f"_...and {len(valid_news) - 10} more articles available._\n\n"
         
-        output += "\nWould you like to know more about any specific article?"
+        output += "💬 Would you like to know more about any specific article or topic?"
         
         logger.info(f"[FORMATTER] Returning formatted news articles")
         return {"output": output}

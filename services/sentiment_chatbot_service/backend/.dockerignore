@@ -21,6 +21,11 @@ venv/
 *.swp
 *.DS_Store
 
+# Data directories (mounted as volumes)
+data/
+data/knowledge_base/
+data/uploads/
+
 # Node / frontend files if accidentally present
 node_modules/
 npm-debug.log

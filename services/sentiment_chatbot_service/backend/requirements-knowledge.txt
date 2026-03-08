@@ -1,0 +1,21 @@
+# Knowledge Base Requirements
+# ============================
+# Install these for the knowledge base functionality
+
+# Vector Database
+chromadb>=0.4.22
+
+# Ollama Python Client
+ollama>=0.1.6
+
+# PDF Processing
+PyPDF2>=3.0.1
+
+# HTTP requests (for API testing)
+requests>=2.31.0
+
+# Already in main requirements.txt but listed here for reference:
+# fastapi>=0.109.0
+# pydantic>=2.5.0
+# python-multipart>=0.0.6  # For file uploads
+# uvicorn>=0.27.0  # For running the server

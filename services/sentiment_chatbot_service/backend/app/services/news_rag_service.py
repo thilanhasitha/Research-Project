@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from app.Database.weaviate_client import WeaviateClient
 from app.Database.repositories.rss_repository import RSSRepository
 from app.llm.LLMFactory import LLMFactory
+from app.utils.query_classifier import QueryClassifier
 from weaviate.classes.query import Filter
 import logging
 
@@ -22,6 +23,7 @@ class NewsRAGService:
         self.rss_repository = RSSRepository()
         self.llm_provider = LLMFactory.get_provider("ollama")
         self.llm = self.llm_provider.get_llm()
+        self.query_classifier = QueryClassifier()
         self._ensure_connected()
     
     def _ensure_connected(self):
@@ -41,9 +43,9 @@ class NewsRAGService:
             logger.info(f"Detected 'today' keyword - filtering from {today}")
             return today
         
-        # Latest/recent news - return last 3 days
+        # Latest/recent news - return last 7 days (expanded from 3 to get more results)
         if any(word in question_lower for word in ['latest', 'recent', 'new', 'current']):
-            date_filter = datetime.utcnow() - timedelta(days=3)
+            date_filter = datetime.utcnow() - timedelta(days=7)
             logger.info(f"Detected 'latest/recent' keyword - filtering from {date_filter}")
             return date_filter
         
@@ -89,6 +91,20 @@ class NewsRAGService:
             List of news articles with metadata
         """
         try:
+            query_lower = query.lower()
+            
+            # Detect generic "latest news" queries
+            is_generic_latest = any(keyword in query_lower for keyword in [
+                'latest news', 'recent news', 'newest news', 'new news',
+                "what's new", 'whats new', 'current news',
+                'latest articles', 'recent articles'
+            ])
+            
+            # For generic latest news requests, go straight to MongoDB sorted by date
+            if is_generic_latest or (len(query.split()) <= 5 and 'latest' in query_lower):
+                logger.info(f"Detected generic latest news query, using MongoDB with date sort")
+                return await self._get_latest_from_mongodb(limit, sentiment_filter, date_from)
+            
             collection = self.weaviate_client.collection
             
             # Build filters
@@ -178,24 +194,48 @@ class NewsRAGService:
         Search MongoDB for news articles using text search.
         """
         try:
-            # Build MongoDB filter
-            filter_dict = {}
+            query_lower = query.lower()
             
-            # Text search in title and content
-            if query:
-                filter_dict["$or"] = [
-                    {"title": {"$regex": query, "$options": "i"}},
-                    {"content": {"$regex": query, "$options": "i"}}
-                ]
+            # Detect if user is asking for "latest news" without specific topics
+            is_generic_latest = any(keyword in query_lower for keyword in [
+                'latest news', 'recent news', 'newest news', 'new news',
+                'what\'s new', 'whats new', 'current news',
+                'latest articles', 'recent articles'
+            ])
             
-            if sentiment_filter:
-                filter_dict["sentiment"] = sentiment_filter
+            # Check if query is asking for latest/recent without much context
+            # (short query with just latest/recent keywords)
+            is_short_latest_query = (
+                len(query.split()) <= 5 and 
+                any(word in query_lower for word in ['latest', 'recent', 'new', 'current'])
+            )
             
-            if date_from:
-                filter_dict["published"] = {"$gte": date_from}
-            
-            # Use the repository to search
-            articles = await self.rss_repository.find_by_filter(filter_dict, limit)
+            # If it's a generic "latest news" request, just get recent articles
+            if is_generic_latest or is_short_latest_query:
+                logger.info(f"Detected generic latest news request, returning recent articles sorted by date")
+                articles = await self.rss_repository.get_latest_news(
+                    limit=limit,
+                    date_from=date_from
+                )
+            else:
+                # Build MongoDB filter for specific topic search
+                filter_dict = {}
+                
+                # Text search in title and content
+                if query:
+                    filter_dict["$or"] = [
+                        {"title": {"$regex": query, "$options": "i"}},
+                        {"content": {"$regex": query, "$options": "i"}}
+                    ]
+                
+                if sentiment_filter:
+                    filter_dict["sentiment"] = sentiment_filter
+                
+                if date_from:
+                    filter_dict["published"] = {"$gte": date_from}
+                
+                # Use the repository to search
+                articles = await self.rss_repository.find_by_filter(filter_dict, limit)
             
             # Format results to match Weaviate structure
             formatted = []
@@ -220,6 +260,55 @@ class NewsRAGService:
             
         except Exception as e:
             logger.error(f"Error searching MongoDB: {e}", exc_info=True)
+            return []
+    
+    async def _get_latest_from_mongodb(
+        self,
+        limit: int,
+        sentiment_filter: Optional[str] = None,
+        date_from: Optional[datetime] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Get latest news articles from MongoDB sorted by published date.
+        This is used for generic 'latest news' queries.
+        """
+        try:
+            logger.info(f"Getting latest news from MongoDB (limit={limit}, date_from={date_from})")
+            
+            # Get articles sorted by date
+            articles = await self.rss_repository.get_latest_news(
+                limit=limit,
+                date_from=date_from
+            )
+            
+            # Apply sentiment filter if needed
+            if sentiment_filter:
+                articles = [a for a in articles if a.get('sentiment') == sentiment_filter]
+            
+            # Format results
+            formatted = []
+            for article in articles:
+                if "error" in article:
+                    continue
+                formatted.append({
+                    "id": article.get("_id"),
+                    "mongoId": article.get("_id"),
+                    "title": article.get("title", "No title"),
+                    "content": article.get("content", ""),
+                    "clean_text": article.get("clean_text", ""),
+                    "summary": article.get("summary", ""),
+                    "link": article.get("link", ""),
+                    "published": article.get("published", ""),
+                    "sentiment": article.get("sentiment", "neutral"),
+                    "score": article.get("score", 0),
+                    "relevance_score": None
+                })
+            
+            logger.info(f"Retrieved {len(formatted)} latest articles from MongoDB")
+            return formatted
+            
+        except Exception as e:
+            logger.error(f"Error getting latest from MongoDB: {e}", exc_info=True)
             return []
     
     async def get_trending_topics(self, days: int = 7, limit: int = 10) -> List[Dict[str, Any]]:
@@ -274,6 +363,7 @@ class NewsRAGService:
     ) -> Dict[str, Any]:
         """
         Answer a user question using RAG - retrieve relevant news and generate answer.
+        Handles greetings and out-of-scope queries without retrieving articles.
         
         Args:
             question: User's question
@@ -286,32 +376,60 @@ class NewsRAGService:
         try:
             logger.info(f"Answering question: '{question}'")
             
+            # Step 0: Classify the query (greeting, out-of-scope, or in-scope)
+            classification, direct_response = self.query_classifier.classify_query(question)
+            
+            # If it's a greeting or out-of-scope, return direct response without retrieval
+            if classification in ['greeting', 'out_of_scope']:
+                logger.info(f"Query classified as '{classification}', returning direct response without article retrieval")
+                return {
+                    "answer": direct_response,
+                    "sources": [],
+                    "context_used": 0,
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "metadata": {
+                        "classification": classification,
+                        "direct_response": True,
+                        "articles_retrieved": False
+                    }
+                }
+            
+            # If in-scope, proceed with normal RAG flow
+            logger.info(f"Query classified as 'in_scope', proceeding with RAG retrieval")
+            
             # Detect time-based filters from question
             date_filter = self._detect_time_filter(question)
             original_filter = date_filter
             
-            # Step 1: Retrieve relevant news articles with progressive fallback
+            # Check if this is a generic "latest news" query
+            question_lower = question.lower()
+            is_generic_latest = any(keyword in question_lower for keyword in [
+                'latest news', 'recent news', 'newest news', 'new news',
+                "what's new", 'whats new', 'current news'
+            ])
+            
+            # Step 1: Retrieve relevant news articles
             news_articles = await self.search_news_by_text(
                 query=question,
                 limit=context_limit,
                 date_from=date_filter
             )
             
-            # Fallback mechanism: If no results, progressively widen the date range
-            date_range_used = "today" if date_filter and (datetime.utcnow() - date_filter).days == 0 else None
+            # Fallback mechanism: If no results and not a generic latest query, try broader search
+            date_range_used = "the past 7 days" if date_filter and (datetime.utcnow() - date_filter).days <= 7 else None
             
-            if not news_articles and date_filter:
+            if not news_articles and date_filter and not is_generic_latest:
                 logger.warning(f"No articles found with original date filter. Trying fallback...")
                 
-                # Fallback 1: Try last 7 days
-                fallback_filter = datetime.utcnow() - timedelta(days=7)
-                logger.info(f"Fallback: Searching last 7 days...")
+                # Fallback 1: Try last 14 days
+                fallback_filter = datetime.utcnow() - timedelta(days=14)
+                logger.info(f"Fallback: Searching last 14 days...")
                 news_articles = await self.search_news_by_text(
                     query=question,
                     limit=context_limit,
                     date_from=fallback_filter
                 )
-                date_range_used = "the past 7 days"
+                date_range_used = "the past 14 days"
                 
                 # Fallback 2: Try last 30 days
                 if not news_articles:
@@ -393,7 +511,12 @@ ANSWER (based only on the articles above):"""
                 "answer": answer,
                 "context_used": len(news_articles),
                 "timestamp": datetime.utcnow().isoformat(),
-                "date_range_used": date_range_used  # Inform user about the actual date range
+                "date_range_used": date_range_used,  # Inform user about the actual date range
+                "metadata": {
+                    "classification": "in_scope",
+                    "direct_response": False,
+                    "articles_retrieved": True
+                }
             }
             
             if include_sources:
