@@ -63,14 +63,16 @@ class RSSService:
     # ------------------------------
     # LLM SUMMARY
     # ------------------------------
-    async def generate_summary(self, text: str):
+    async def generate_summary(self, text: str, max_retries: int = 3):
         if not self.llm:
             return "Summary unavailable: LLM not initialized"
-        try:
-            # Limit text length to avoid token limits and improve speed
-            text_sample = text[:1000] if len(text) > 1000 else text
-            
-            prompt = f"""Summarize this news article in 2-3 clear sentences.
+        
+        for attempt in range(max_retries):
+            try:
+                # Limit text length to avoid token limits and improve speed
+                text_sample = text[:1000] if len(text) > 1000 else text
+                
+                prompt = f"""Summarize this news article in 2-3 clear sentences.
 Focus on the main financial or economic points.
 Write only the summary, no extra text or labels.
 
@@ -78,42 +80,52 @@ Article:
 {text_sample}
 
 Summary:"""
-            
-            summary = await self.llm.generate([prompt])
-            
-            # Clean up the response
-            summary = summary.strip()
-            
-            # Remove common prefixes that LLMs might add
-            prefixes_to_remove = [
-                "Summary:", "Here's the summary:", "Here is the summary:",
-                "The summary is:", "Summary of the article:"
-            ]
-            for prefix in prefixes_to_remove:
-                if summary.startswith(prefix):
-                    summary = summary[len(prefix):].strip()
-            
-            # Ensure we have some content
-            if not summary or len(summary) < 10:
-                return "Unable to generate summary"
-            
-            return summary
-            
-        except Exception as e:
-            print(f"Summary generation error: {e}")
-            return f"Summary error: {str(e)}"
+                
+                summary = await self.llm.generate([prompt])
+                
+                # Clean up the response
+                summary = summary.strip()
+                
+                # Remove common prefixes that LLMs might add
+                prefixes_to_remove = [
+                    "Summary:", "Here's the summary:", "Here is the summary:",
+                    "The summary is:", "Summary of the article:"
+                ]
+                for prefix in prefixes_to_remove:
+                    if summary.startswith(prefix):
+                        summary = summary[len(prefix):].strip()
+                
+                # Ensure we have some content
+                if not summary or len(summary) < 10:
+                    return "Unable to generate summary"
+                
+                return summary
+                
+            except Exception as e:
+                error_msg = str(e)
+                print(f"Summary generation error (attempt {attempt + 1}/{max_retries}): {error_msg}")
+                
+                # If connection refused and not last attempt, wait and retry
+                if "Connection refused" in error_msg and attempt < max_retries - 1:
+                    await asyncio.sleep(2 ** attempt)  # Exponential backoff: 1s, 2s, 4s
+                    continue
+                
+                # Last attempt or non-retryable error
+                return f"Summary error: {error_msg}"
 
     # ------------------------------
     # LLM SENTIMENT
     # ------------------------------
-    async def analyze_sentiment(self, text: str):
+    async def analyze_sentiment(self, text: str, max_retries: int = 3):
         if not self.llm:
             return {"sentiment": "neutral", "score": 0}
-        try:
-            # Limit text length to avoid token limits
-            text_sample = text[:800] if len(text) > 800 else text
-            
-            prompt = f"""Analyze the sentiment of this financial news.
+        
+        for attempt in range(max_retries):
+            try:
+                # Limit text length to avoid token limits
+                text_sample = text[:800] if len(text) > 800 else text
+                
+                prompt = f"""Analyze the sentiment of this financial news.
 You MUST respond with ONLY valid JSON, nothing else.
 
 Required format:
@@ -129,36 +141,44 @@ Text to analyze:
 
 Respond with JSON only:"""
 
-            result = await self.llm.generate([prompt])
-            
-            # Try to extract JSON from response (in case LLM adds extra text)
-            import re
-            json_match = re.search(r'\{.*?\}', result, re.DOTALL)
-            if json_match:
-                result = json_match.group()
-            
-            parsed = json.loads(result)
-            
-            # Validate the response structure
-            if "sentiment" not in parsed or "score" not in parsed:
-                raise ValueError("Missing required fields")
-            
-            # Ensure sentiment is one of the valid values
-            valid_sentiments = ["positive", "neutral", "negative"]
-            if parsed["sentiment"] not in valid_sentiments:
-                parsed["sentiment"] = "neutral"
-            
-            # Ensure score is a number
-            try:
-                parsed["score"] = float(parsed["score"])
-            except (ValueError, TypeError):
-                parsed["score"] = 0.0
-            
-            return parsed
-            
-        except Exception as e:
-            print(f"Sentiment analysis error: {e}")
-            return {"sentiment": "neutral", "score": 0, "reason": "Error parsing response"}
+                result = await self.llm.generate([prompt])
+                
+                # Try to extract JSON from response (in case LLM adds extra text)
+                import re
+                json_match = re.search(r'\{.*?\}', result, re.DOTALL)
+                if json_match:
+                    result = json_match.group()
+                
+                parsed = json.loads(result)
+                
+                # Validate the response structure
+                if "sentiment" not in parsed or "score" not in parsed:
+                    raise ValueError("Missing required fields")
+                
+                # Ensure sentiment is one of the valid values
+                valid_sentiments = ["positive", "neutral", "negative"]
+                if parsed["sentiment"] not in valid_sentiments:
+                    parsed["sentiment"] = "neutral"
+                
+                # Ensure score is a number
+                try:
+                    parsed["score"] = float(parsed["score"])
+                except (ValueError, TypeError):
+                    parsed["score"] = 0.0
+                
+                return parsed
+                
+            except Exception as e:
+                error_msg = str(e)
+                print(f"Sentiment analysis error (attempt {attempt + 1}/{max_retries}): {error_msg}")
+                
+                # If connection refused and not last attempt, wait and retry
+                if "Connection refused" in error_msg and attempt < max_retries - 1:
+                    await asyncio.sleep(2 ** attempt)  # Exponential backoff: 1s, 2s, 4s
+                    continue
+                
+                # Last attempt or non-retryable error
+                return {"sentiment": "neutral", "score": 0, "reason": f"Error: {error_msg}"}
 
     # ------------------------------
     # FETCH & STORE

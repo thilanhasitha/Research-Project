@@ -149,6 +149,41 @@ async def get_trending(days: int = 7, limit: int = 10):
     """
     try:
         logger.info(f"Getting trending news for last {days} days")
+        news_rag = get_news_rag()
+        results = await news_rag.get_trending_topics(days=days, limit=limit)
+        
+        return {
+            "status": "success",
+            "count": len(results),
+            "results": results
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in get_trending: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to get trending news: {str(e)}")
+
+
+@router.get("/latest")
+async def get_latest_news(limit: int = 10):
+    """
+    Get the latest news articles sorted by published date.
+    This is useful for testing the latest news functionality.
+    """
+    try:
+        logger.info(f"Getting {limit} latest news articles")
+        news_rag = get_news_rag()
+        results = await news_rag._get_latest_from_mongodb(limit=limit)
+        
+        return {
+            "status": "success",
+            "count": len(results),
+            "results": results
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in get_latest_news: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to get latest news: {str(e)}")
+        logger.info(f"Getting trending news for last {days} days")
         
         news_rag = get_news_rag()
         results = await news_rag.get_trending_topics(days=days, limit=limit)

@@ -1,6 +1,6 @@
 import { valuationApi } from './api';
-import { StockValuation, ValuationRequest } from '../modules/valuation/types';
-import { ApiResponse } from '../shared/types/common';
+import type { StockValuation, ValuationRequest } from '../modules/valuation/types';
+import type { ApiResponse } from '../shared/types/common';
 
 export const valuationService = {
   // Get stock valuation by symbol
