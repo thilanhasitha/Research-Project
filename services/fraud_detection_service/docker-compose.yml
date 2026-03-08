@@ -1,0 +1,17 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fraud_detection_backend
+    ports:
+      - "8003:8003"
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    environment:
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app
+      - MONGO_URI=mongodb+srv://ravi:ravi@cluster0.sc4zaj7.mongodb.net/pumpdumpdb?retryWrites=true&w=majority
+    restart: always
