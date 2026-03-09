@@ -33,14 +33,10 @@ const QuickActions: React.FC<QuickActionsProps> = ({
     { icon: BarChart3, label: 'Stock Performance', action: 'stock_performance', category: 'news' },
 
     // Knowledge Base Actions (CSE Annual Report 2024)
-    { icon: DollarSign, label: 'Financial Highlights', action: 'financial_highlights', category: 'knowledge',
-      question: 'What are the key financial highlights from the CSE Annual Report 2024? List in bullet points.' },
-    { icon: Activity, label: 'Trading Statistics', action: 'trading_stats', category: 'knowledge',
-      question: 'What are the main trading statistics and market metrics for 2024? List in bullet points.' },
-    { icon: TrendingUp, label: 'Growth Metrics', action: 'growth_metrics', category: 'knowledge',
-      question: 'What are the growth metrics and year-over-year comparisons? List in bullet points.' },
-    { icon: AlertTriangle, label: 'Challenges & Risks', action: 'challenges', category: 'knowledge',
-      question: 'What challenges and risks are mentioned in the report? Summarize in bullet points.' }
+    { icon: DollarSign, label: 'Financial Highlights', action: 'financial_highlights', category: 'knowledge' },
+    { icon: Activity, label: 'Trading Statistics', action: 'trading_stats', category: 'knowledge' },
+    { icon: TrendingUp, label: 'Growth Metrics', action: 'growth_metrics', category: 'knowledge' },
+    { icon: AlertTriangle, label: 'Challenges & Risks', action: 'challenges', category: 'knowledge' }
   ];
 
   const getButtonStyle = (): string => {
