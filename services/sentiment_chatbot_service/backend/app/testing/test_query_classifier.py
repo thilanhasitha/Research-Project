@@ -54,7 +54,7 @@ def test_query_classifier():
         ("What are the current interest rates?", "in_scope"),
         ("Tell me about the recent IPO", "in_scope"),
         ("What's the latest earnings report?", "in_scope"),
-    ]
+    ] 
     
     print("\n" + "="*80)
     print("QUERY CLASSIFIER TESTS")
