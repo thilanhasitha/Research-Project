@@ -1,13 +1,14 @@
 import pandas as pd
 import joblib
 import os
+import shap
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-MODEL_PATH = os.path.join(BASE_DIR, "stock_ml", "risk_model.pkl")
-SCALER_PATH = os.path.join(BASE_DIR, "stock_ml", "scaler.pkl")
-ENCODER_PATH = os.path.join(BASE_DIR, "stock_ml", "risk_encoder.pkl")
-FEATURES_PATH = os.path.join(BASE_DIR, "stock_ml", "features.pkl")
+MODEL_PATH = os.path.join(BASE_DIR, "risk_model.pkl")
+SCALER_PATH = os.path.join(BASE_DIR, "scaler.pkl")
+ENCODER_PATH = os.path.join(BASE_DIR, "risk_encoder.pkl")
+FEATURES_PATH = os.path.join(BASE_DIR, "features.pkl")
 
 model = None
 scaler = None
@@ -15,8 +16,10 @@ risk_encoder = None
 FEATURES = None
 
 
+explainer = None
+
 def load_model():
-    global model, scaler, risk_encoder, FEATURES
+    global model, scaler, risk_encoder, FEATURES, explainer
 
     if model is not None:
         return
@@ -26,8 +29,10 @@ def load_model():
     risk_encoder = joblib.load(ENCODER_PATH)
     FEATURES = joblib.load(FEATURES_PATH)
 
-    print(" ML model loaded successfully")
-    print(" Features used:", FEATURES)
+    # Create SHAP explainer
+    explainer = shap.TreeExplainer(model)
+
+    print("ML model loaded successfully")
 
 
 def predict_risk(user_input: dict):
@@ -41,23 +46,31 @@ def predict_risk(user_input: dict):
 
 
 def explain_prediction(user_input: dict):
-  
-    explanations = []
 
-    if user_input["Age"] < 30:
-        explanations.append("Younger age increases financial risk exposure.")
-    elif user_input["Age"] < 50:
-        explanations.append("Middle-age profile has moderate financial risk.")
+    load_model()
 
-    if user_input["Income Level"] < 50000:
-        explanations.append("Lower income increases financial risk.")
-    else:
-        explanations.append("Stable income reduces financial risk.")
+    df = pd.DataFrame([user_input])[FEATURES]
+    df_scaled = scaler.transform(df)
 
-    if user_input["Loan Amount"] > 50000:
-        explanations.append("High loan amount increases financial risk.")
+    # predict class
+    pred = model.predict(df_scaled)[0]
 
-    if user_input["Interest Rate"] > 10:
-        explanations.append("High interest rate increases repayment risk.")
+    # SHAP explanation
+    shap_values = explainer(df_scaled)
 
-    return explanations
+    explanation = []
+
+    values = shap_values.values[0]   # SHAP values for this sample
+
+    for i, feature in enumerate(FEATURES):
+
+        value = values[i][pred] if values.ndim == 2 else values[i]
+
+        explanation.append({
+            "feature": feature,
+            "impact": round(abs(float(value)),4),
+            "direction": "increase" if value > 0 else "decrease",
+            "message": f"{feature} influenced the risk prediction"
+        })
+
+    return explanation

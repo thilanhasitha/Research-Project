@@ -103,9 +103,9 @@ def calculate_risk_score(row):
 
 
 def classify_risk(score):
-    if score <= 4:
+    if score <= 2:
         return "Low"
-    elif score <= 6:
+    elif score <= 4:
         return "Medium"
     else:
         return "High"

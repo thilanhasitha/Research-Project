@@ -40,10 +40,16 @@ function RiskResult() {
         <h3>Why this risk?</h3>
 
         {explanation.length > 0 ? (
-          explanation.map((text, index) => (
+          explanation.map((exp, index) => (
             <div key={index} className="explain-card">
               <div className="explain-icon">📊</div>
-              <div>{text}</div>
+          
+              <div>
+                <b>{exp.feature}</b><br/>
+                Impact: {exp.impact}<br/>
+                {exp.direction === "increase" ? "↑ Increases Risk" : "↓ Reduces Risk"}<br/>
+                {exp.message}
+              </div>
             </div>
           ))
         ) : (
